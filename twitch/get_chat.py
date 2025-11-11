@@ -1,8 +1,8 @@
 import irc.client
+import os
 
-# Replace with your Twitch username and OAuth token
 USERNAME = "stanford_pupper"
-TOKEN = "oauth:your_oauth_token"  # Must start with "oauth:"
+TOKEN = f"oauth:{os.environ['TWITCH_OAUTH_TOKEN']}"
 CHANNEL = f"#{USERNAME}"  # Twitch channels are prefixed with #
 
 def on_connect(connection, event):
