@@ -14,10 +14,10 @@ from datetime import datetime
 import os
 
 try:
-    from openai import AsyncOpenAI
+    import openai
 except ImportError:
     print("Warning: openai package not installed. Run: pip install openai")
-    AsyncOpenAI = None
+    openai = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -69,17 +69,18 @@ class ChatProcessor:
         self.model = model
         self.voting_system = voting_system
 
-        # Initialize OpenAI client
-        if AsyncOpenAI is None:
+        # Initialize OpenAI
+        if openai is None:
             logger.error("OpenAI package not installed. Install with: pip install openai")
-            self.client = None
+            self._openai_configured = False
         else:
             api_key = api_key or os.getenv("OPENAI_API_KEY")
             if not api_key:
                 logger.warning("No OpenAI API key provided. Set OPENAI_API_KEY environment variable.")
-                self.client = None
+                self._openai_configured = False
             else:
-                self.client = AsyncOpenAI(api_key=api_key)
+                openai.api_key = api_key
+                self._openai_configured = True
 
         # Message queue and processing
         self.message_queue: List[ChatMessage] = []
@@ -158,8 +159,8 @@ IMPORTANT:
             logger.warning("Chat processor already running")
             return
 
-        if self.client is None:
-            logger.error("Cannot start: OpenAI client not initialized")
+        if not getattr(self, "_openai_configured", False):
+            logger.error("Cannot start: OpenAI is not configured (missing package or API key)")
             return
 
         self.running = True
@@ -286,7 +287,7 @@ IMPORTANT:
         Use OpenAI Chat API to extract commands from text.
         Returns list of command strings.
         """
-        if not self.client:
+        if not getattr(self, "_openai_configured", False):
             return []
 
         # Check rate limit
@@ -295,22 +296,28 @@ IMPORTANT:
             return []
 
         try:
-            # Make API call
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": text}
-                ],
-                temperature=0.3,
-                max_tokens=100
-            )
+            # Make API call (run sync client in a thread for compatibility)
+            def _call_openai():
+                return openai.ChatCompletion.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": text}
+                    ],
+                    temperature=0.3,
+                    max_tokens=100,
+                )
+
+            response = await asyncio.to_thread(_call_openai)
 
             self.api_calls_made += 1
             self._record_request()
 
             # Parse response
-            content = response.choices[0].message.content.strip()
+            # Support both dict-style and attribute-style access depending on SDK version
+            choice = response.choices[0]
+            message = getattr(choice, "message", None) or choice["message"]
+            content = message["content"].strip() if isinstance(message, dict) else message.content.strip()
             if not content:
                 return []
 

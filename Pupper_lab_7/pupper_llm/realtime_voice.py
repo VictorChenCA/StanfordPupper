@@ -89,6 +89,10 @@ class RealtimeVoiceNode(Node):
         
         # API key
         self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            logger.error("OPENAI_API_KEY environment variable is not set. "
+                         "Set it in your shell or .env file before running realtime_voice.")
+            raise RuntimeError("OPENAI_API_KEY not configured for RealtimeVoiceNode")
         
         # Text accumulator to see the full model output
         self.current_response_text = ""
