@@ -26,7 +26,9 @@ import websockets
 
 # Import centralized API configuration
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'config'))
-from api_keys import get_openai_api_key
+import dotenv
+from dotenv import load_dotenv
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -91,7 +93,11 @@ class RealtimeVoiceNode(Node):
         self.playback_queue = queue.Queue(maxsize=100)
         
         # API key
-        self.api_key = get_openai_api_key()
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            logger.error("OPENAI_API_KEY environment variable is not set. "
+                         "Set it in your shell or .env file before running realtime_voice.")
+            raise RuntimeError("OPENAI_API_KEY not configured for RealtimeVoiceNode")
         
         # Text accumulator to see the full model output
         self.current_response_text = ""
