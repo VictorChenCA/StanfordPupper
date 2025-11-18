@@ -159,12 +159,15 @@ class CommandExecutor:
             return False
 
         command, priority = winner
+        print(f"🏆 EXECUTING WINNER: '{command}' (priority: {priority:.1f}s)", flush=True)
         logger.info(f"Executing winner: '{command}' (priority: {priority:.1f}s)")
 
         # Publish to ROS2 if available
         if self.ros_publisher:
+            print(f"🤖 Publishing to ROS2: {command}", flush=True)
             self.ros_publisher.publish_command(command)
         else:
+            print(f"⚠️  No ROS2 publisher - would execute: {command}", flush=True)
             logger.warning(f"No ROS2 publisher - would execute: {command}")
 
         # Update state
@@ -173,6 +176,7 @@ class CommandExecutor:
         self.command_start_time = time.time()
         self.expected_duration = self._get_command_duration(command)
 
+        print(f"⏱️  Robot will be busy for ~{self.expected_duration:.1f}s", flush=True)
         logger.info(f"Robot will be busy for ~{self.expected_duration:.1f}s")
         return True
 

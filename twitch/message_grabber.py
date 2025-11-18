@@ -179,19 +179,23 @@ class Bot(commands.AutoBot):
 
     async def event_ready(self) -> None:
         LOGGER.info("Successfully logged in as: %s", self.bot_id)
+        print(f"✅ Successfully logged in to Twitch as: {self.bot_id}", flush=True)
 
         # Start voting system countdown
         if self.voting_system:
             await self.voting_system.start_countdown()
+            print("✅ Voting system countdown started", flush=True)
             LOGGER.info("Voting system countdown started")
 
         # Start command executor
         if self.command_executor:
             await self.command_executor.start()
+            print("✅ Command executor started", flush=True)
             LOGGER.info("Command executor started")
 
         # Start chat processor
         await self.chat_processor.start()
+        print("✅ Chat processor initialization complete", flush=True)
         LOGGER.info("Chat processor started and ready to process commands")
 
 
@@ -210,7 +214,7 @@ class MyComponent(commands.Component):
     async def event_message(self, payload: twitchio.ChatMessage) -> None:
         """Process incoming Twitch chat messages and pass to chat processor."""
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
-        print(f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}")
+        print(f"🎮 MESSAGE RECEIVED: [{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}", flush=True)
 
         # Pass message to chat processor (will filter by command prefix)
         self.bot.chat_processor.add_message(

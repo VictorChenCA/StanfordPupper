@@ -160,11 +160,14 @@ IMPORTANT:
             return
 
         if not getattr(self, "_openai_configured", False):
+            print("⚠️  WARNING: OpenAI is not configured (missing package or API key)", flush=True)
+            print("⚠️  Chat processor cannot start - messages will not be processed!", flush=True)
             logger.error("Cannot start: OpenAI is not configured (missing package or API key)")
             return
 
         self.running = True
         self.processing_task = asyncio.create_task(self._processing_loop())
+        print(f"✅ Chat processor started (prefix: '{self.command_prefix}', batch: {self.batch_interval}s)", flush=True)
         logger.info(f"Chat processor started (prefix: '{self.command_prefix}', batch: {self.batch_interval}s)")
 
     async def stop(self):
@@ -190,11 +193,13 @@ IMPORTANT:
         """
         # Filter by command prefix
         if not text.strip().lower().startswith(self.command_prefix):
+            print(f"📝 Message '{text}' doesn't start with '{self.command_prefix}' - ignoring", flush=True)
             return
 
         # Remove prefix from text
         command_text = text.strip()[len(self.command_prefix):].strip()
         if not command_text:
+            print(f"⚠️  Message has prefix but no command text - ignoring", flush=True)
             return
 
         msg = ChatMessage(
@@ -205,6 +210,7 @@ IMPORTANT:
         )
 
         self.message_queue.append(msg)
+        print(f"✅ QUEUED: {username} → '{command_text}' (queue size: {len(self.message_queue)})", flush=True)
         logger.debug(f"Queued message from {username}: {command_text}")
 
     async def _processing_loop(self):

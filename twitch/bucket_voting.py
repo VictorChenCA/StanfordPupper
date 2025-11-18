@@ -152,11 +152,17 @@ class VotingSystem:
 
         if success:
             self.total_votes_received += 1
+            print(
+                f"🗳️  VOTE: {username} → '{command}' "
+                f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})",
+                flush=True
+            )
             logger.info(
                 f"Vote: {username} → '{command}' "
                 f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})"
             )
         else:
+            print(f"❌ Duplicate vote rejected: {username} already voted for '{command}'", flush=True)
             logger.debug(f"Duplicate vote rejected: {username} already voted for '{command}'")
 
         return success
