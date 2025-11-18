@@ -208,14 +208,6 @@ class MyComponent(commands.Component):
         # We pass bot here as an example...
         self.bot = bot
 
-        rclpy.init()
-        self.ros_node = Node('twitch_command_publisher')
-        self.text_publisher = self.ros_node.create_publisher(
-            String,
-            '/text_command',
-            10
-        )
-
     # An example of listening to an event
     # We use a listener in our Component to display the messages received.
     @commands.Component.listener()

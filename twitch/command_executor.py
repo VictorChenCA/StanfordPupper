@@ -120,6 +120,13 @@ class CommandExecutor:
         """Mark current command as finished."""
         if self.current_command:
             elapsed = time.time() - self.command_start_time
+
+            print(f"\n{'='*60}", flush=True)
+            print(f"✅ COMMAND COMPLETED", flush=True)
+            print(f"{'='*60}", flush=True)
+            print(f"Command: {self.current_command}", flush=True)
+            print(f"Duration: {elapsed:.1f}s (expected: {self.expected_duration:.1f}s)", flush=True)
+
             logger.info(
                 f"Command '{self.current_command}' completed "
                 f"(expected: {self.expected_duration:.1f}s, actual: {elapsed:.1f}s)"
@@ -134,6 +141,16 @@ class CommandExecutor:
             # Update stats
             self.commands_executed += 1
             self.total_execution_time += elapsed
+
+            # Show remaining buckets
+            print(f"\n📊 BUCKET STATUS AFTER COMPLETION:", flush=True)
+            bucket_status = self.voting_system.get_bucket_status()
+            if bucket_status:
+                for cmd, pri in bucket_status.items():
+                    print(f"   • {cmd}: {pri:.1f}s", flush=True)
+            else:
+                print("   (all buckets empty)", flush=True)
+            print(f"{'='*60}\n", flush=True)
 
         self.state = ExecutionState.IDLE
         self.current_command = None
@@ -159,7 +176,23 @@ class CommandExecutor:
             return False
 
         command, priority = winner
-        print(f"🏆 EXECUTING WINNER: '{command}' (priority: {priority:.1f}s)", flush=True)
+
+        # Print status before execution
+        print(f"\n{'='*60}", flush=True)
+        print(f"🏆 EXECUTING WINNER", flush=True)
+        print(f"{'='*60}", flush=True)
+        print(f"Command: {command}", flush=True)
+        print(f"Priority: {priority:.1f}s", flush=True)
+        print(f"\n📊 BUCKET STATUS BEFORE EXECUTION:", flush=True)
+        bucket_status = self.voting_system.get_bucket_status()
+        if bucket_status:
+            for cmd, pri in bucket_status.items():
+                marker = "👉" if cmd == command else "  "
+                print(f"{marker} {cmd}: {pri:.1f}s", flush=True)
+        else:
+            print("   (all buckets empty)", flush=True)
+        print(f"{'='*60}\n", flush=True)
+
         logger.info(f"Executing winner: '{command}' (priority: {priority:.1f}s)")
 
         # Publish to ROS2 if available
@@ -208,6 +241,9 @@ class CommandExecutor:
 
     async def _execution_loop(self):
         """Main loop - checks for winners and executes them."""
+        last_waiting_msg = 0
+        WAITING_INTERVAL = 5.0  # Print waiting message every 5 seconds
+
         while self.running:
             try:
                 # Check if we're idle and can execute
@@ -216,7 +252,19 @@ class CommandExecutor:
                     executed = self.execute_winner()
 
                     if not executed:
-                        # No winner, wait a bit before checking again
+                        # No winner - print waiting message every 5 seconds
+                        current_time = time.time()
+                        if current_time - last_waiting_msg >= WAITING_INTERVAL:
+                            bucket_status = self.voting_system.get_bucket_status()
+                            if not bucket_status:
+                                print(f"⏳ Waiting for votes... (no active buckets)", flush=True)
+                            else:
+                                print(f"⏳ Waiting for more votes (current buckets too low to execute):", flush=True)
+                                for cmd, priority in bucket_status.items():
+                                    print(f"   • {cmd}: {priority:.1f}s", flush=True)
+                            last_waiting_msg = current_time
+
+                        # Wait a bit before checking again
                         await asyncio.sleep(self.execution_interval)
                 else:
                     # Currently executing, check periodically
