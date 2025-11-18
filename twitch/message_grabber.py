@@ -128,16 +128,15 @@ class MyComponent(commands.Component):
     # We use a listener in our Component to display the messages received.
     @commands.Component.listener()
     # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
     async def event_message(self, payload: twitchio.ChatMessage) -> None:
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
         print(f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}")
+        
+
         # use something like example_command(message) to pass on messages to a new function which parses them for pupper
 
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
-    # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
-    # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
+
     # @commands.command()
     # async def hi(self, ctx: commands.Context) -> None:
     #     """Command that replies to the invoker with Hi <name>!

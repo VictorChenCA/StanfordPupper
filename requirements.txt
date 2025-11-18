@@ -1,0 +1,4 @@
+asyncio
+asqlite
+twitchio
+python-dotenv
