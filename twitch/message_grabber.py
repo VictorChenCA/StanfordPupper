@@ -141,15 +141,15 @@ class MyComponent(commands.Component):
     @commands.Component.listener()
     async def event_message(self, payload: twitchio.ChatMessage) -> None:
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
-        print(message)
+        print("listened to message: ", message)
 
         # Publish text command to Pupper
         msg = String()
         msg.data = payload.text
         self.text_publisher.publish(msg)
         
-        print(f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}")
-        return (payload.broadcaster.name, payload.chatter.name, payload.text)
+        # print(f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}")
+        # return (payload.broadcaster.name, payload.chatter.name, payload.text)
 
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
 
