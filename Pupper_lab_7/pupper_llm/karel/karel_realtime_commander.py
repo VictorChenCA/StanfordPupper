@@ -146,7 +146,9 @@ class KarelRealtimeCommanderNode(Node):
         command_dict = {
             "stop_tracking": "stop_tracking",
             "move_forwards": "move_forward", 
+            "move_forward": "move_forward",
             "move_backwards": "move_backward", 
+            "move_backward": "move_backward",
             "move_left": "move_left", 
             "move_right": "move_right", 
             "turn_left": "turn_left", 
@@ -192,10 +194,10 @@ class KarelRealtimeCommanderNode(Node):
             # TODO: Paste your Lab 6 command mapping implementation below
             # Implement the mapping from canonical command names (e.g., "move", "turn_left", "bark", etc.) to the appropriate KarelPupper action and its timing.
             # One complete mapping is shown as an example!
-            if command in ["move_forward", "go", "forward"]:
+            if command in ["move_forward", "go", "forward", "move_forwards"]:
                 self.pupper.move_forward()
                 await asyncio.sleep(0.5)  # Hint: Use await asyncio.sleep(seconds) to pace each action!
-            elif command in ["move_backward"]:
+            elif command in ["move_backward", "move_backwards"]:
                 self.pupper.move_backward()
                 await asyncio.sleep(0.5)
             elif command in ["move_right"]:
