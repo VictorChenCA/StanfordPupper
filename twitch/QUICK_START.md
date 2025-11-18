@@ -16,12 +16,18 @@
 
 ### 1. Install Packages
 ```bash
+cd twitch/
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+
+# Install dependencies
 pip install openai twitchio asqlite python-dotenv
 ```
 
 ### 2. Create Config File
 ```bash
-cd twitch/
 cp .env.example .env
 nano .env  # Add your API keys
 ```
@@ -32,15 +38,33 @@ Required in `.env`:
 - `BOT_ID` - Your Twitch user ID
 - `OPENAI_API_KEY` - From https://platform.openai.com/api-keys
 
-### 3. Run the Bot
+### 3. Verify Setup
 ```bash
+python check_setup.py
+```
+
+Fix any errors before continuing!
+
+### 4. Launch Streaming Mode
+```bash
+cd ../Pupper_lab_7/scripts/
+./launch_with_twitch.sh
+```
+
+**This starts EVERYTHING:**
+- ✅ Robot control
+- ✅ Camera/vision
+- ✅ Voice control
+- ✅ Twitch integration
+
+**Or run just the Twitch bot:**
+```bash
+cd twitch/
 python message_grabber.py
 ```
 
-On first run, authenticate via browser.
-
-### 4. Test in Twitch Chat
-Go live on Twitch, then type:
+### 5. Test in Twitch Chat
+Go live on Twitch, then have viewers type:
 ```
 !pupper walk forward
 !pupper dance

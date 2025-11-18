@@ -54,7 +54,22 @@ nano .env  # or use any text editor
 - **OpenAI** - Get from https://platform.openai.com/api-keys
   - `OPENAI_API_KEY`
 
-### 3. Run the Bot
+### 3. Verify Setup
+
+```bash
+# Check that everything is configured correctly
+python check_setup.py
+```
+
+This will verify:
+- ✅ All required files exist
+- ✅ Python packages installed
+- ✅ `.env` file configured
+- ✅ Twitch authentication status
+
+Fix any errors before proceeding!
+
+### 4. Run the Bot
 
 ```bash
 python message_grabber.py
@@ -62,7 +77,7 @@ python message_grabber.py
 
 First run will open a browser for Twitch authentication. After that, you're good to go!
 
-### 4. Test in Your Stream
+### 5. Test in Your Stream
 
 Go live on Twitch and have viewers type:
 ```
@@ -183,10 +198,37 @@ Clear winning bucket → New voting round
 
 ## 🎮 Running with Pupper
 
-### On Raspberry Pi (Full Setup)
+### 🚀 Streaming Mode (Recommended)
+
+**One command to start everything!**
 
 ```bash
-# Terminal 1: Twitch bot
+cd ~/StanfordPupper/Pupper_lab_7/scripts/
+./launch_with_twitch.sh
+```
+
+This launches:
+- ✅ Robot control system
+- ✅ Camera and vision
+- ✅ Voice control (optional, works alongside Twitch)
+- ✅ Twitch chat integration
+- ✅ Everything you need for streaming!
+
+**What you'll see:**
+```
+[VOICE]  - Voice commands and responses
+[KAREL]  - Robot actions being executed
+[TWITCH] - Chat votes and command selection
+```
+
+Press **Ctrl+C** to cleanly shut down everything.
+
+### Manual Setup (Advanced)
+
+If you want to run components separately:
+
+```bash
+# Terminal 1: Twitch bot only
 cd ~/StanfordPupper/twitch
 source .venv/bin/activate
 python message_grabber.py
@@ -202,6 +244,7 @@ You can test the voting system on any computer:
 
 ```bash
 # Runs in "chat-only" mode (no robot control)
+cd twitch/
 python message_grabber.py
 ```
 
