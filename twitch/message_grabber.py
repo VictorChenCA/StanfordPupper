@@ -33,6 +33,10 @@ from twitchio.ext import commands
 from dotenv import load_dotenv
 import os
 
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
 
 if TYPE_CHECKING:
     import sqlite3
@@ -124,16 +128,28 @@ class MyComponent(commands.Component):
         # We pass bot here as an example...
         self.bot = bot
 
+        rclpy.init()
+        self.ros_node = Node('twitch_command_publisher')
+        self.text_publisher = self.ros_node.create_publisher(
+            String,
+            '/text_command',
+            10
+        )
+
     # An example of listening to an event
     # We use a listener in our Component to display the messages received.
     @commands.Component.listener()
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
     async def event_message(self, payload: twitchio.ChatMessage) -> None:
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
+        print(message)
+
+        # Publish text command to Pupper
+        msg = String()
+        msg.data = payload.text
+        self.text_publisher.publish(msg)
+        
         print(f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}")
-        # use something like example_command(message) to pass on messages to a new function which parses them for pupper
+        return (payload.broadcaster.name, payload.chatter.name, payload.text)
 
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
