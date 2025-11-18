@@ -59,12 +59,17 @@ class RealtimeVoiceNode(Node):
             10
         )
         
-        # NEW FOR LAB 7: Camera snapshot subscriber (for vision input to OpenAI)
-        # This receives periodic camera snapshots that get sent to GPT when the user speaks
         self.camera_snapshot_subscriber = self.create_subscription(
             CompressedImage,
             '/camera_snapshot',
             self.camera_snapshot_callback,
+            10
+        )
+
+        self.text_command_subscriber = self.create_subscription(
+            String,
+            '/text_command',
+            self.text_command_callback,
             10
         )
         
@@ -99,16 +104,6 @@ class RealtimeVoiceNode(Node):
         # Response logging
         self.response_count = 0
         
-        # TODO: Write a system prompt for Pupper with vision and tracking capabilities
-        # Your prompt should include:
-        # 1. Critical output format instructions (exact action phrases, one per line)
-        # 2. Movement actions: Moving forward, Going backward, Turning left, Turning right, Moving left, Moving right, Stopping
-        # 3. Fun actions: Wiggling my tail, Bobbing, Dancing, Woof woof
-        # 4. NEW FOR LAB 7 - Tracking actions: Start tracking [object], Stop tracking
-        #    - Support tracking for 80+ COCO objects: person, dog, cat, car, bottle, chair, cup, bird, etc.
-        # 5. NEW FOR LAB 7 - Vision capabilities: Explain that you can see through the camera and describe what you see
-        # 6. Provide concrete examples showing tracking and vision usage
-        # Your prompt should be around 70 lines to cover all capabilities thoroughly.
         self.system_prompt =  """You are ChatGPT-4o, controlling Pupper, a small robotic dog, when and only when the user issues instructions intended to be executed by Pupper. This system prompt enforces three distinct modes of behavior:
 
 A) MOVEMENT/ACTION MODE — When the user’s input is an instruction intended to make Pupper perform actions (movement, fun actions, or tracking), follow the strict MOVEMENT/ACTION MODE rules below.
@@ -185,20 +180,26 @@ When the input is not a movement/action instruction or a vision request:
         """
         Store latest camera image for sending to OpenAI.
         
-        NEW FOR LAB 7: This callback receives camera snapshots and prepares them for vision input.
-        
-        TODO: Implement camera snapshot processing
-        - The msg parameter is a CompressedImage message containing JPEG image data in msg.data
-        - Convert the JPEG data to base64 encoding using: base64.b64encode(msg.data).decode('utf-8')
-        - Store the base64 string in self.latest_camera_image_base64
-        - Set self.camera_image_pending = True to indicate a new image is ready to send
-        - Wrap in try/except and log errors with logger.error() if conversion fails
         """
         try:
             self.latest_camera_image_base64 = base64.b64encode(msg.data).decode('utf-8')
             self.camera_image_pending = True
         except:
             logger.error('Image conversion failed :(')
+    
+    def text_command_callback(self, msg):
+        """
+        Handle incoming text commands from external sources (e.g., Twitch chat).
+        Converts text to a user message for the Realtime API.
+        """
+        text_command = msg.data.strip()
+        if not text_command:
+            return
+        
+        logger.info(f"💬 Text Command: {text_command}")
+        
+        # Create async task to send text command to API
+        asyncio.create_task(self.send_text_command(text_command))
     
     async def _delayed_unmute(self):
         """Unmute microphone after 3 second delay to prevent echo."""
@@ -279,10 +280,49 @@ When the input is not a movement/action instruction or a vision request:
         except Exception as e:
             logger.error("Failed to send camera image to VLM: %s", e)
     
+    async def send_text_command(self, text: str):
+        """
+        Send a text command to the Realtime API as a user message.
+        This bypasses voice input and directly injects text into the conversation.
+        """
+        if not self.websocket:
+            logger.warning("Cannot send text command - WebSocket not connected")
+            return
+        
+        try:
+            # Send camera image if available (for vision context)
+            await self.send_camera_image_if_available()
+            
+            # Create a text message item in the conversation
+            text_message = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": text
+                        }
+                    ]
+                }
+            }
+            
+            await self.websocket.send(json.dumps(text_message))
+            
+            # Trigger response generation
+            response_create = {
+                "type": "response.create"
+            }
+            await self.websocket.send(json.dumps(response_create))
+            
+            logger.info(f"✅ Text command sent to API: {text}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send text command: {e}")
+    
     async def connect_realtime_api(self):
         """Connect to OpenAI Realtime API via WebSocket."""
-        # NEW FOR LAB 7: Using "gpt-realtime" model which supports multimodal input (audio + images)
-        # This is different from Lab 6 which used "gpt-4o-realtime-preview-2024-10-01" (audio only)
         url = "wss://api.openai.com/v1/realtime?model=gpt-realtime"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
