@@ -33,6 +33,22 @@ from twitchio.ext import commands
 from dotenv import load_dotenv
 import os
 
+# ROS2 imports
+try:
+    import rclpy
+    from rclpy.node import Node
+    from std_msgs.msg import String
+    ROS2_AVAILABLE = True
+except ImportError:
+    print("Warning: ROS2 not available. Running in chat-only mode.")
+    ROS2_AVAILABLE = False
+    Node = object  # Dummy for type hints
+
+# Import chat processor and voting system
+from chat_processor import ChatProcessor
+from bucket_voting import VotingSystem
+from command_executor import CommandExecutor
+
 
 if TYPE_CHECKING:
     import sqlite3
@@ -49,12 +65,58 @@ CLIENT_SECRET: str = os.getenv("SECRET_ID")  # The CLIENT SECRET from the Twitch
 BOT_ID = os.getenv("BOT_ID")  # The Account ID of the bot user...
 OWNER_ID = BOT_ID  # We are using the streaming account to read stream messages so bot_id and owner_id are the same.
 
+# Chat processor configuration
+COMMAND_PREFIX = os.getenv("PUPPER_COMMAND_PREFIX", "!pupper")
+BATCH_INTERVAL = float(os.getenv("PUPPER_BATCH_INTERVAL", "3.0"))
+MAX_REQUESTS_PER_MINUTE = int(os.getenv("PUPPER_MAX_REQUESTS_PER_MINUTE", "12"))
+
+# Bucket voting configuration
+VOTE_DURATION = float(os.getenv("VOTE_DURATION", "30.0"))
+MAX_BUCKET_TIME = float(os.getenv("MAX_BUCKET_TIME", "60.0"))
+COUNTDOWN_INTERVAL = float(os.getenv("COUNTDOWN_INTERVAL", "1.0"))
+
+
+class PupperCommandPublisher(Node):
+    """ROS2 node that publishes commands to Pupper."""
+
+    def __init__(self):
+        super().__init__('twitch_command_publisher')
+        # Publisher to the same topic that karel_realtime_commander listens to
+        self.publisher = self.create_publisher(String, 'gpt4_response_topic', 10)
+        self.get_logger().info('Twitch Command Publisher initialized')
+
+    def publish_command(self, command: str):
+        """Publish a command to Pupper."""
+        msg = String()
+        msg.data = command
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Published command: {command}')
+
 
 class Bot(commands.AutoBot):
 
     # DO NOT need to mess around with this for pupper
-    def __init__(self, *, token_database: asqlite.Pool, subs: list[eventsub.SubscriptionPayload]) -> None:
+    def __init__(
+        self,
+        *,
+        token_database: asqlite.Pool,
+        subs: list[eventsub.SubscriptionPayload],
+        ros_publisher=None,
+        voting_system=None,
+        command_executor=None
+    ) -> None:
         self.token_database = token_database
+        self.ros_publisher = ros_publisher
+        self.voting_system = voting_system
+        self.command_executor = command_executor
+
+        # Initialize chat processor with voting system
+        self.chat_processor = ChatProcessor(
+            command_prefix=COMMAND_PREFIX,
+            batch_interval=BATCH_INTERVAL,
+            max_requests_per_minute=MAX_REQUESTS_PER_MINUTE,
+            voting_system=voting_system
+        )
 
         super().__init__(
             client_id=CLIENT_ID,
@@ -68,6 +130,10 @@ class Bot(commands.AutoBot):
 
     # DO NOT need to mess around with this for pupper
     async def setup_hook(self) -> None:
+        # Note: Commands now go through bucket voting system
+        # No need for direct callback - votes accumulate in buckets
+        # CommandExecutor handles winner selection and execution
+
         # Add our component which contains our commands for the bot!
         await self.add_component(MyComponent(self))
         print("added components")
@@ -114,6 +180,20 @@ class Bot(commands.AutoBot):
     async def event_ready(self) -> None:
         LOGGER.info("Successfully logged in as: %s", self.bot_id)
 
+        # Start voting system countdown
+        if self.voting_system:
+            await self.voting_system.start_countdown()
+            LOGGER.info("Voting system countdown started")
+
+        # Start command executor
+        if self.command_executor:
+            await self.command_executor.start()
+            LOGGER.info("Command executor started")
+
+        # Start chat processor
+        await self.chat_processor.start()
+        LOGGER.info("Chat processor started and ready to process commands")
+
 
 class MyComponent(commands.Component):
     # An example of a Component with some simple commands and listeners
@@ -127,13 +207,17 @@ class MyComponent(commands.Component):
     # An example of listening to an event
     # We use a listener in our Component to display the messages received.
     @commands.Component.listener()
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
-    # EDIT THIS TO PASS THROUGH TWITCH MESSAGES TO PUPPER
     async def event_message(self, payload: twitchio.ChatMessage) -> None:
+        """Process incoming Twitch chat messages and pass to chat processor."""
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
         print(f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}")
-        # use something like example_command(message) to pass on messages to a new function which parses them for pupper
+
+        # Pass message to chat processor (will filter by command prefix)
+        self.bot.chat_processor.add_message(
+            username=payload.chatter.name,
+            text=payload.text,
+            broadcaster=payload.broadcaster.name
+        )
 
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
@@ -237,11 +321,43 @@ async def setup_database(db: asqlite.Pool) -> tuple[list[tuple[str, str]], list[
 def main() -> None:
     twitchio.utils.setup_logging(level=logging.INFO)
 
+    # Initialize ROS2 if available
+    ros_publisher = None
+    if ROS2_AVAILABLE:
+        try:
+            rclpy.init()
+            ros_publisher = PupperCommandPublisher()
+            LOGGER.info("ROS2 publisher initialized")
+        except Exception as e:
+            LOGGER.error(f"Failed to initialize ROS2: {e}")
+            LOGGER.warning("Running in chat-only mode (no robot control)")
+
+    # Initialize bucket voting system
+    voting_system = VotingSystem(
+        vote_duration=VOTE_DURATION,
+        max_bucket_time=MAX_BUCKET_TIME,
+        countdown_interval=COUNTDOWN_INTERVAL
+    )
+    LOGGER.info(f"Voting system initialized ({VOTE_DURATION}s/vote, {MAX_BUCKET_TIME}s max)")
+
+    # Initialize command executor
+    command_executor = CommandExecutor(
+        voting_system=voting_system,
+        ros_publisher=ros_publisher
+    )
+    LOGGER.info("Command executor initialized")
+
     async def runner() -> None:
         async with asqlite.create_pool("tokens.db") as tdb:
             tokens, subs = await setup_database(tdb)
 
-            async with Bot(token_database=tdb, subs=subs) as bot:
+            async with Bot(
+                token_database=tdb,
+                subs=subs,
+                ros_publisher=ros_publisher,
+                voting_system=voting_system,
+                command_executor=command_executor
+            ) as bot:
                 for pair in tokens:
                     await bot.add_token(*pair)
 
@@ -253,6 +369,14 @@ def main() -> None:
         asyncio.run(runner())
     except KeyboardInterrupt:
         LOGGER.warning("Shutting down due to KeyboardInterrupt")
+    finally:
+        # Cleanup ROS2
+        if ROS2_AVAILABLE and ros_publisher:
+            try:
+                ros_publisher.destroy_node()
+                rclpy.shutdown()
+            except Exception as e:
+                LOGGER.error(f"Error shutting down ROS2: {e}")
 
 
 if __name__ == "__main__":
