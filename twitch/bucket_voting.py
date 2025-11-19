@@ -2,6 +2,8 @@
 """
 Bucket-Based Voting System for Twitch Chat Commands
 Implements democratic command selection where viewers vote for actions.
+
+MINIMAL CHANGE: Added get_top_commands_for_execution() to support command chaining
 """
 
 import asyncio
@@ -94,6 +96,7 @@ class VotingSystem:
     - Votes decay over time (1s/second)
     - Maximum bucket time cap (60s)
     - Winner selection based on highest priority
+    - NEW: Support for command chaining within time budget
     """
 
     def __init__(
@@ -194,6 +197,45 @@ class VotingSystem:
 
         return None
 
+    def get_top_commands_for_execution(self, max_commands: int = 5) -> List[Tuple[str, float]]:
+        """
+        NEW METHOD: Get top commands by priority for chaining.
+        
+        This allows the system to execute multiple commands in sequence
+        based on their vote priority (most votes first).
+        
+        Args:
+            max_commands: Maximum number of commands to return (default 5)
+            
+        Returns:
+            List of (command, priority) tuples, ordered by priority descending
+            
+        Example:
+            [(move_forwards, 45.0), (turn_left, 30.0), (dance, 15.0)]
+            These can be chained as: "move_forwards move_forwards turn_left dance"
+        """
+        # Decay all buckets first
+        for bucket in self.buckets.values():
+            bucket.decay()
+
+        # Collect all non-empty buckets with their priorities
+        commands_with_priority = []
+        for command, bucket in self.buckets.items():
+            priority = bucket.get_priority()
+            if priority > 0.1:  # Only include non-empty buckets
+                commands_with_priority.append((command, priority))
+
+        # Sort by priority (highest first)
+        commands_with_priority.sort(key=lambda x: x[1], reverse=True)
+
+        # Return top N
+        result = commands_with_priority[:max_commands]
+        
+        if result:
+            logger.info(f"Top commands for execution: {result}")
+        
+        return result
+
     def clear_winner(self, command: str):
         """
         Clear the winning bucket after execution.
@@ -205,6 +247,19 @@ class VotingSystem:
             self.buckets[command].clear()
             self.execution_cycles += 1
             logger.info(f"Cleared winning bucket: '{command}' (cycle #{self.execution_cycles})")
+
+    def clear_executed_commands(self, commands: List[str]):
+        """
+        NEW METHOD: Clear multiple commands after execution (for chaining).
+        
+        Args:
+            commands: List of commands that were executed
+        """
+        for command in commands:
+            if command in self.buckets:
+                self.buckets[command].clear()
+        self.execution_cycles += 1
+        logger.info(f"Cleared executed commands: {commands} (cycle #{self.execution_cycles})")
 
     def start_new_cycle(self):
         """
@@ -297,36 +352,23 @@ class VotingSystem:
         }
 
 
-# Example usage
+# Example usage demonstrating command chaining
 async def demo():
-    """Demonstrate the voting system."""
+    """Demonstrate the voting system with command chaining."""
     voting = VotingSystem(vote_duration=30, max_bucket_time=60)
 
     await voting.start_countdown()
 
-    # Simulate votes
-    voting.add_vote("alice", "dance")
-    voting.add_vote("bob", "dance")
-    voting.add_vote("charlie", "move_forward")
-    voting.add_vote("alice", "dance")  # Duplicate, should be rejected
+    top_commands = voting.get_top_commands_for_execution(max_commands=3)
+    print(f"\nTop commands for chaining: {top_commands}")
+    print("This could be sent to GPT as a batch for processing into:")
+    print("Example: 'Alright! move_forwards move_forwards move_forwards turn_left turn_left dance'")
 
-    print(f"\nBucket status: {voting.get_bucket_status()}")
-    print(f"Top commands: {voting.get_top_commands(3)}")
-
-    # Get winner
-    winner = voting.get_winner()
-    if winner:
-        print(f"\nWinner: {winner[0]} ({winner[1]:.1f}s)")
-        voting.clear_winner(winner[0])
-
-    # New cycle
-    voting.start_new_cycle()
-    voting.add_vote("alice", "wiggle")  # Now alice can vote again
+    # Clear executed commands
+    executed = [cmd for cmd, _ in top_commands]
+    voting.clear_executed_commands(executed)
 
     print(f"\nStats: {voting.get_stats()}")
-
-    await asyncio.sleep(3)
-    print(f"\nAfter 3s decay: {voting.get_bucket_status()}")
 
     await voting.stop_countdown()
 
