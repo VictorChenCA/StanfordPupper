@@ -3,6 +3,8 @@
 Twitch Chat Processor with LLM Integration
 Batches messages and uses OpenAI Chat API to extract Pupper commands.
 Optimized for Raspberry Pi with rate limiting and message filtering.
+
+MINIMAL CHANGE: Fixed to work with bucket voting + command chaining
 """
 
 import asyncio
@@ -41,6 +43,7 @@ class ChatProcessor:
     - Command prefix filtering
     - Rate limiting
     - Pattern matching fallback for common commands
+    - Integration with bucket voting system
     """
 
     def __init__(
@@ -231,7 +234,14 @@ IMPORTANT:
                 await asyncio.sleep(1.0)
 
     async def _process_batch(self):
-        """Process the current batch of messages."""
+        """
+        Process the current batch of messages.
+        
+        FIXED: Now properly integrates with voting system
+        - Extracts commands from each message
+        - Registers votes in the voting system
+        - Voting system handles aggregation and selection
+        """
         if not self.message_queue:
             return
 
@@ -241,7 +251,7 @@ IMPORTANT:
 
         logger.info(f"Processing batch of {len(batch)} messages")
 
-        # Process each message
+        # Process each message and register votes
         for msg in batch:
             # Try simple pattern matching first
             commands = self._try_pattern_match(msg.text)
@@ -249,17 +259,30 @@ IMPORTANT:
             if commands:
                 logger.info(f"Pattern matched '{msg.text}' -> {commands}")
                 self.commands_processed += len(commands)
-                # Yield commands (will be handled by callback)
-                for cmd in commands:
-                    await self._on_command_extracted(msg.username, cmd)
+                
+                # Register votes in voting system
+                if self.voting_system:
+                    for cmd in commands:
+                        self.voting_system.add_vote(msg.username, cmd)
+                else:
+                    # Legacy callback mode
+                    for cmd in commands:
+                        await self._on_command_extracted(msg.username, cmd)
             else:
                 # Use LLM for complex/ambiguous commands
                 commands = await self._extract_commands_with_llm(msg.text)
                 if commands:
                     logger.info(f"LLM extracted from '{msg.text}' -> {commands}")
                     self.commands_processed += len(commands)
-                    for cmd in commands:
-                        await self._on_command_extracted(msg.username, cmd)
+                    
+                    # Register votes in voting system
+                    if self.voting_system:
+                        for cmd in commands:
+                            self.voting_system.add_vote(msg.username, cmd)
+                    else:
+                        # Legacy callback mode
+                        for cmd in commands:
+                            await self._on_command_extracted(msg.username, cmd)
 
     def _try_pattern_match(self, text: str) -> List[str]:
         """
@@ -354,19 +377,14 @@ IMPORTANT:
 
     async def _on_command_extracted(self, username: str, command: str):
         """
-        Callback when a command is extracted.
-        Sends vote to VotingSystem if available, otherwise uses legacy callback.
+        Callback when a command is extracted (legacy mode only).
+        When voting_system is set, votes are registered directly in _process_batch.
         """
-        if self.voting_system:
-            # Send vote to bucket voting system
-            self.voting_system.add_vote(username, command)
-        else:
-            # Legacy direct execution (for backwards compatibility)
-            logger.info(f"Command extracted from {username}: {command}")
+        logger.info(f"Command extracted from {username}: {command}")
 
     def set_command_callback(self, callback):
         """
-        Set a callback function to handle extracted commands.
+        Set a callback function to handle extracted commands (legacy mode).
 
         Args:
             callback: async function(username: str, command: str) -> None
@@ -376,33 +394,46 @@ IMPORTANT:
 
 # Example usage
 async def main():
-    """Test the chat processor."""
+    """Test the chat processor with voting system."""
+    # Import voting system
+    import sys
+    sys.path.append('.')
+    from bucket_voting import VotingSystem
+    
+    # Create voting system
+    voting = VotingSystem(vote_duration=30, max_bucket_time=60)
+    await voting.start_countdown()
+    
+    # Create processor with voting
     processor = ChatProcessor(
         command_prefix="!pupper",
         batch_interval=3.0,
-        max_requests_per_minute=12
+        max_requests_per_minute=12,
+        voting_system=voting
     )
-
-    # Set up callback
-    async def handle_command(username: str, command: str):
-        print(f"[COMMAND] {username}: {command}")
-
-    processor.set_command_callback(handle_command)
 
     # Start processor
     await processor.start()
 
     # Simulate some messages
     processor.add_message("alice", "!pupper walk forward")
-    processor.add_message("bob", "!pupper dance and wiggle")
-    processor.add_message("charlie", "!pupper follow that person")
-    processor.add_message("dave", "regular chat message")  # Won't be processed
+    processor.add_message("bob", "!pupper walk forward")
+    processor.add_message("charlie", "!pupper dance")
+    processor.add_message("dave", "!pupper turn left")
+    processor.add_message("eve", "regular chat message")  # Won't be processed
 
     # Wait for processing
     await asyncio.sleep(5)
+    
+    # Check voting results
+    print("\n📊 Voting results:")
+    top_commands = voting.get_top_commands_for_execution(max_commands=5)
+    for cmd, priority in top_commands:
+        print(f"  {cmd}: {priority:.1f}s")
 
     # Stop
     await processor.stop()
+    await voting.stop_countdown()
 
 
 if __name__ == "__main__":
