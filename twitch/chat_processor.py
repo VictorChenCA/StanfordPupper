@@ -262,9 +262,10 @@ IMPORTANT:
 
                 # Register votes in voting system
                 if self.voting_system:
-                    # For compound commands, join them with newlines and vote as one sequence
+                    # For compound commands, join them with spaces so they can be parsed on one line
+                    # Karel's extract_commands_from_line searches for all keywords in a line
                     if len(commands) > 1:
-                        command_sequence = "\n".join(commands)
+                        command_sequence = " ".join(commands)
                         self.voting_system.add_vote(msg.username, command_sequence)
                     else:
                         self.voting_system.add_vote(msg.username, commands[0])
@@ -281,9 +282,10 @@ IMPORTANT:
 
                     # Register votes in voting system
                     if self.voting_system:
-                        # For compound commands, join them with newlines and vote as one sequence
+                        # For compound commands, join them with spaces so they can be parsed on one line
+                        # Karel's extract_commands_from_line searches for all keywords in a line
                         if len(commands) > 1:
-                            command_sequence = "\n".join(commands)
+                            command_sequence = " ".join(commands)
                             self.voting_system.add_vote(msg.username, command_sequence)
                         else:
                             self.voting_system.add_vote(msg.username, commands[0])
