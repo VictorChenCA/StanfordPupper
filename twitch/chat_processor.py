@@ -480,7 +480,8 @@ CRITICAL RULES
             "bob": "bob", 
             "wiggle": "wiggle", 
             "dance": "dance",
-            "bark": "bark"}
+            "bark": "bark",
+            "stop": "stop"}
         
         # Search for each command keyword in the line
             for keyword, canonical_command in command_dict.items():
