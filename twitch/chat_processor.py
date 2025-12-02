@@ -259,11 +259,15 @@ IMPORTANT:
             if commands:
                 logger.info(f"Pattern matched '{msg.text}' -> {commands}")
                 self.commands_processed += len(commands)
-                
+
                 # Register votes in voting system
                 if self.voting_system:
-                    for cmd in commands:
-                        self.voting_system.add_vote(msg.username, cmd)
+                    # For compound commands, join them with newlines and vote as one sequence
+                    if len(commands) > 1:
+                        command_sequence = "\n".join(commands)
+                        self.voting_system.add_vote(msg.username, command_sequence)
+                    else:
+                        self.voting_system.add_vote(msg.username, commands[0])
                 else:
                     # Legacy callback mode
                     for cmd in commands:
@@ -274,11 +278,15 @@ IMPORTANT:
                 if commands:
                     logger.info(f"LLM extracted from '{msg.text}' -> {commands}")
                     self.commands_processed += len(commands)
-                    
+
                     # Register votes in voting system
                     if self.voting_system:
-                        for cmd in commands:
-                            self.voting_system.add_vote(msg.username, cmd)
+                        # For compound commands, join them with newlines and vote as one sequence
+                        if len(commands) > 1:
+                            command_sequence = "\n".join(commands)
+                            self.voting_system.add_vote(msg.username, command_sequence)
+                        else:
+                            self.voting_system.add_vote(msg.username, commands[0])
                     else:
                         # Legacy callback mode
                         for cmd in commands:
@@ -288,28 +296,57 @@ IMPORTANT:
         """
         Try to match message against simple patterns.
         Returns list of commands if matched, empty list otherwise.
+        Supports compound commands separated by commas, "and", "then", etc.
         """
         text_lower = text.lower().strip()
 
-        # Check exact matches
-        for pattern, command in self.simple_patterns.items():
-            if pattern in text_lower:
-                return [command]
+        # Split on common separators for compound commands
+        # e.g., "turn right, move forward, and bark"
+        separators = [', and ', ' and then ', ' then ', ', ']
 
-        # Check tracking patterns
-        tracking_keywords = ["follow", "track", "chase"]
-        object_keywords = ["person", "dog", "cat", "ball", "human", "people"]
+        # Try to split the text into parts
+        parts = [text_lower]
+        for sep in separators:
+            new_parts = []
+            for part in parts:
+                new_parts.extend(part.split(sep))
+            parts = new_parts
 
-        for keyword in tracking_keywords:
-            if keyword in text_lower:
-                # Try to find object
-                for obj in object_keywords:
-                    if obj in text_lower:
-                        return [f"start_tracking [{obj}]"]
-                # Default to person if no object specified
-                return ["start_tracking [person]"]
+        # Try to match each part
+        matched_commands = []
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
 
-        return []
+            # Check exact matches
+            found = False
+            for pattern, command in self.simple_patterns.items():
+                if pattern in part:
+                    matched_commands.append(command)
+                    found = True
+                    break
+
+            # If no simple pattern, check tracking patterns
+            if not found:
+                tracking_keywords = ["follow", "track", "chase"]
+                object_keywords = ["person", "dog", "cat", "ball", "human", "people"]
+
+                for keyword in tracking_keywords:
+                    if keyword in part:
+                        # Try to find object
+                        for obj in object_keywords:
+                            if obj in part:
+                                matched_commands.append(f"start_tracking [{obj}]")
+                                found = True
+                                break
+                        if not found:
+                            # Default to person if no object specified
+                            matched_commands.append("start_tracking [person]")
+                            found = True
+                        break
+
+        return matched_commands
 
     async def _extract_commands_with_llm(self, text: str) -> List[str]:
         """
