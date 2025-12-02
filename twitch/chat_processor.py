@@ -198,9 +198,7 @@ IMPORTANT:
             text: Message text
             broadcaster: Broadcaster name
         """
-        
-        print("[!!!] add_message CALLED — DEPRECATED")
-            
+                    
         # Filter by command prefix
         if not text.strip().lower().startswith(self.command_prefix):
             print(f"📝 Message '{text}' doesn't start with '{self.command_prefix}' - ignoring", flush=True)
