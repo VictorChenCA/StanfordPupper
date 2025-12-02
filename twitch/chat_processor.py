@@ -383,7 +383,7 @@ IMPORTANT:
 
             response = await asyncio.to_thread(_call_openai)
             logger.info("Extracted response from LLM:")
-            logger.info(response)
+            logger.info(response.output_text)
 
             self.api_calls_made += 1
             self._record_request()
