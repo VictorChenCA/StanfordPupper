@@ -309,6 +309,15 @@ IMPORTANT:
                 # Default to person if no object specified
                 return ["start_tracking [person]"]
 
+        # Check say/speak/talk patterns - extract text after keyword
+        say_keywords = ["say ", "speak ", "talk "]
+        for keyword in say_keywords:
+            if text_lower.startswith(keyword):
+                # Extract the text to speak (everything after the keyword)
+                text_to_speak = text[len(keyword):].strip()
+                if text_to_speak:
+                    return [f"say [{text_to_speak}]"]
+
         return []
 
     async def _extract_commands_with_llm(self, text: str) -> List[str]:

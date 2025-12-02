@@ -20,6 +20,11 @@ from typing import Optional
 # Replace with your actual OpenAI API key
 OPENAI_API_KEY = "your-openai-api-key-here"
 
+# ElevenLabs API Configuration (for high-quality TTS)
+# Get your API key from: https://elevenlabs.io/
+ELEVENLABS_API_KEY = "your-elevenlabs-api-key-here"
+ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Default: Rachel voice
+
 # Model Configuration
 GPT_MODEL = "gpt-4"
 WHISPER_MODEL = "whisper-1"
@@ -59,12 +64,41 @@ def get_openai_api_key() -> str:
 def get_openai_client():
     """
     Get configured OpenAI client instance.
-    
+
     Returns:
         OpenAI: Configured OpenAI client
     """
     from openai import OpenAI
     return OpenAI(api_key=get_openai_api_key())
+
+
+def get_elevenlabs_api_key() -> Optional[str]:
+    """
+    Get ElevenLabs API key with fallback to environment variable.
+
+    Returns:
+        str or None: The ElevenLabs API key, or None if not configured
+    """
+    # First try environment variable (for production/security)
+    env_key = os.getenv('ELEVENLABS_API_KEY')
+    if env_key:
+        return env_key
+
+    # Fallback to hardcoded key
+    if ELEVENLABS_API_KEY and ELEVENLABS_API_KEY != "your-elevenlabs-api-key-here":
+        return ELEVENLABS_API_KEY
+
+    return None  # ElevenLabs is optional, return None if not configured
+
+
+def get_elevenlabs_voice_id() -> str:
+    """
+    Get ElevenLabs voice ID with fallback to environment variable.
+
+    Returns:
+        str: The ElevenLabs voice ID
+    """
+    return os.getenv('ELEVENLABS_VOICE_ID', ELEVENLABS_VOICE_ID)
 
 def validate_api_key() -> bool:
     """
@@ -82,7 +116,7 @@ def validate_api_key() -> bool:
 # Configuration validation on import
 if __name__ == "__main__":
     print("=== API Key Configuration Test ===")
-    
+
     if validate_api_key():
         print("✓ OpenAI API key is properly configured")
         key = get_openai_api_key()
@@ -90,7 +124,14 @@ if __name__ == "__main__":
     else:
         print("✗ OpenAI API key is not properly configured")
         print("Please check your configuration in config/api_keys.py")
-    
+
+    elevenlabs_key = get_elevenlabs_api_key()
+    if elevenlabs_key:
+        print("✓ ElevenLabs API key is configured")
+        print(f"✓ ElevenLabs Voice ID: {get_elevenlabs_voice_id()}")
+    else:
+        print("○ ElevenLabs API key not configured (will use pyttsx3 fallback)")
+
     print(f"✓ GPT Model: {GPT_MODEL}")
     print(f"✓ Whisper Model: {WHISPER_MODEL}")
     print(f"✓ TTS Model: {TTS_MODEL}")

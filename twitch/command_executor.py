@@ -49,6 +49,7 @@ class CommandExecutor:
         "dance": 12.0,
         "bark": 1.0,
         "stop_tracking": 0.5,
+        "say": 3.0,  # TTS speech duration (approximate)
     }
 
     def __init__(
@@ -98,6 +99,10 @@ class CommandExecutor:
         # Handle tracking commands
         if command.startswith("start_tracking") or command.startswith("track_"):
             return 0.5
+
+        # Handle say commands with text parameter: say [text]
+        if command.startswith("say ["):
+            return self.COMMAND_DURATIONS.get("say", 3.0)
 
         # Look up in duration table
         return self.COMMAND_DURATIONS.get(command, 1.0)  # Default 1s
