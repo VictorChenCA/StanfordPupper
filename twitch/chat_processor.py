@@ -33,6 +33,7 @@ class ChatMessage:
     text: str
     timestamp: float
     broadcaster: str
+    donation: bool
 
 
 class ChatProcessor:
