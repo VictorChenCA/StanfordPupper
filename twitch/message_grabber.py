@@ -228,7 +228,7 @@ class MyComponent(commands.Component):
     async def event_donation(self, payload: twitchio.ChannelCheer) -> None:
         """Process incoming Twitch chat messages and pass to chat processor."""
         message = f"[{payload.broadcaster.name}] - {payload.user.name}: {payload.message}"
-        print(f"🎮 MESSAGE RECEIVED: [{payload.broadcaster.name}] - {payload.user.name}: {payload.message}", flush=True)
+        print(f"🎮 DONATION RECEIVED: [{payload.broadcaster.name}] - {payload.user.name}: {payload.message}", flush=True)
 
         # Pass message to chat processor (will filter by command prefix)
         self.bot.chat_processor.add_message(

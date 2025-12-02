@@ -254,26 +254,26 @@ IMPORTANT:
         # Process each message and register votes
         for msg in batch:
             # Try simple pattern matching first
-            commands = self._try_pattern_match(msg.text)
+            #commands = self._try_pattern_match(msg.text)
 
-            if commands:
-                logger.info(f"Pattern matched '{msg.text}' -> {commands}")
-                self.commands_processed += len(commands)
+            # if commands:
+            #     logger.info(f"Pattern matched '{msg.text}' -> {commands}")
+            #     self.commands_processed += len(commands)
 
-                # Register votes in voting system
-                if self.voting_system:
-                    # For compound commands, join them with spaces so they can be parsed on one line
-                    # Karel's extract_commands_from_line searches for all keywords in a line
-                    if len(commands) > 1:
-                        command_sequence = " ".join(commands)
-                        self.voting_system.add_vote(msg.username, command_sequence)
-                    else:
-                        self.voting_system.add_vote(msg.username, commands[0])
-                else:
-                    # Legacy callback mode
-                    for cmd in commands:
-                        await self._on_command_extracted(msg.username, cmd)
-            else:
+            #     # Register votes in voting system
+            #     if self.voting_system:
+            #         # For compound commands, join them with spaces so they can be parsed on one line
+            #         # Karel's extract_commands_from_line searches for all keywords in a line
+            #         if len(commands) > 1:
+            #             command_sequence = " ".join(commands)
+            #             self.voting_system.add_vote(msg.username, command_sequence)
+            #         else:
+            #             self.voting_system.add_vote(msg.username, commands[0])
+            #     else:
+            #         # Legacy callback mode
+            #         for cmd in commands:
+            #             await self._on_command_extracted(msg.username, cmd)
+            # else:
                 # Use LLM for complex/ambiguous commands
                 commands = await self._extract_commands_with_llm(msg.text)
                 if commands:
