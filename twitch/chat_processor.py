@@ -53,7 +53,7 @@ class ChatProcessor:
         command_prefix: str = "!",
         batch_interval: float = 3.0,
         max_requests_per_minute: int = 12,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-5-nano",
         voting_system = None
     ):
         """
@@ -85,7 +85,8 @@ class ChatProcessor:
                 self._openai_configured = False
                 self._openai_client = None
             else:
-                self._openai_client = OpenAI(api_key=api_key)
+                # Use environment-configured API key with the default OpenAI client
+                self._openai_client = OpenAI()
                 self._openai_configured = True
 
         # Message queue and processing
@@ -370,14 +371,14 @@ IMPORTANT:
         try:
             # Make API call (run sync client in a thread for compatibility)
             def _call_openai():
-                return self._openai_client.chat.completions.create(
+                return self._openai_client.responses.create(
                     model=self.model,
-                    messages=[
+                    input=[
                         {"role": "system", "content": self.system_prompt},
-                        {"role": "user", "content": text}
+                        {"role": "user", "content": text},
                     ],
                     temperature=0.3,
-                    max_tokens=100,
+                    max_output_tokens=100,
                 )
 
             response = await asyncio.to_thread(_call_openai)
@@ -385,8 +386,8 @@ IMPORTANT:
             self.api_calls_made += 1
             self._record_request()
 
-            # Parse response (v1.0.0+ uses attribute access)
-            content = response.choices[0].message.content
+            # Parse response using the Responses API helper
+            content = response.output_text
             if not content:
                 return []
 
