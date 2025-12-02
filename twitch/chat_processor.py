@@ -382,6 +382,8 @@ IMPORTANT:
                 )
 
             response = await asyncio.to_thread(_call_openai)
+            logger.log("Extracted response from LLM:")
+            logger.log(response)
 
             self.api_calls_made += 1
             self._record_request()
@@ -393,8 +395,6 @@ IMPORTANT:
 
             # Split into lines and clean
             commands = [line.strip() for line in content.split('\n') if line.strip()]
-            print("Extracted commands from LLM:")
-            print(commands)
             return commands
 
         except Exception as e:
