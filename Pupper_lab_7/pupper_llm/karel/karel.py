@@ -334,11 +334,12 @@ Text to check:"""
         audio_file = None
 
         # Try ElevenLabs first
-        try:
-            api_key = os.getenv('ELEVENLABS_API_KEY')
-            voice_id = os.getenv('ELEVENLABS_VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
+        api_key = os.getenv('ELEVENLABS_API_KEY')
+        voice_id = os.getenv('ELEVENLABS_VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
+        self.node.get_logger().info(f'ElevenLabs API key set: {bool(api_key)}, Voice ID: {voice_id}')
 
-            if api_key:
+        if api_key:
+            try:
                 import requests
 
                 url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -355,30 +356,46 @@ Text to check:"""
                     }
                 }
 
+                self.node.get_logger().info(f'Calling ElevenLabs API...')
                 response = requests.post(url, json=data, headers=headers, timeout=10)
+                self.node.get_logger().info(f'ElevenLabs response: {response.status_code}')
 
                 if response.status_code == 200:
                     # Save to temp file
                     with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as f:
                         f.write(response.content)
                         audio_file = f.name
-                    self.node.get_logger().info('Using ElevenLabs TTS')
+                    self.node.get_logger().info(f'Using ElevenLabs TTS, saved to {audio_file}')
                 else:
-                    raise Exception(f"ElevenLabs API error: {response.status_code}")
-        except Exception as e:
-            self.node.get_logger().warning(f"ElevenLabs failed: {e}, using fallback")
+                    self.node.get_logger().warning(f'ElevenLabs API error: {response.status_code} - {response.text[:200]}')
+            except Exception as e:
+                self.node.get_logger().warning(f"ElevenLabs failed: {type(e).__name__}: {e}")
+        else:
+            self.node.get_logger().info('No ELEVENLABS_API_KEY set, skipping ElevenLabs')
 
         # Fallback to pyttsx3
         if audio_file is None:
+            self.node.get_logger().info('Trying pyttsx3 fallback...')
             try:
                 import pyttsx3
+                self.node.get_logger().info(f'pyttsx3 module: {pyttsx3}, file: {getattr(pyttsx3, "__file__", "unknown")}')
                 engine = pyttsx3.init()
+                self.node.get_logger().info('pyttsx3 engine created')
                 engine.say(filtered_text)
                 engine.runAndWait()
                 self.node.get_logger().info('Using pyttsx3 fallback TTS')
                 return  # pyttsx3 plays directly, no file needed
             except Exception as e:
-                self.node.get_logger().error(f"pyttsx3 fallback failed: {e}")
+                self.node.get_logger().error(f"pyttsx3 fallback failed: {type(e).__name__}: {e}")
+                # Try espeak as last resort on Linux/Pi
+                self.node.get_logger().info('Trying espeak as last resort...')
+                try:
+                    import subprocess
+                    subprocess.run(['espeak', filtered_text], check=True, timeout=10)
+                    self.node.get_logger().info('Used espeak fallback')
+                    return
+                except Exception as espeak_err:
+                    self.node.get_logger().error(f"espeak also failed: {espeak_err}")
                 return
 
         # Play ElevenLabs audio file with pygame
