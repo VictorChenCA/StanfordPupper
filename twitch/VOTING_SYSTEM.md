@@ -54,7 +54,7 @@ Robot finishes current action → Execute "dance" (winner) → Clear dance bucke
 
 ### 1. Vote Accumulation
 
-When a viewer types `!pupper dance`:
+When a viewer types `!dance`:
 1. Message → **ChatProcessor** → Pattern match or LLM → Extract "dance"
 2. **VotingSystem.add_vote("username", "dance")**
 3. Add 30 seconds to the "dance" bucket (max 60s)
@@ -62,10 +62,10 @@ When a viewer types `!pupper dance`:
 
 **Example:**
 ```
-Alice: !pupper dance     → dance bucket: 0s + 30s = 30s
-Bob:   !pupper dance     → dance bucket: 30s + 30s = 60s (capped)
-Charlie: !pupper dance   → dance bucket: still 60s (max reached)
-Alice: !pupper dance     → REJECTED (Alice already voted this cycle)
+Alice: !dance     → dance bucket: 0s + 30s = 30s
+Bob:   !dance     → dance bucket: 30s + 30s = 60s (capped)
+Charlie: !dance   → dance bucket: still 60s (max reached)
+Alice: !dance     → REJECTED (Alice already voted this cycle)
 ```
 
 ### 2. Vote Decay
@@ -123,9 +123,9 @@ T=0s:   Robot idle, check votes
 
 T=0-12s: Robot dancing
          - Votes accumulate for next round
-         - Alice: !pupper move_forward → move_forward: 30s
-         - Bob: !pupper wiggle → wiggle: 30s
-         - Charlie: !pupper dance → dance: 30s (new votes!)
+         - Alice: !move_forward → move_forward: 30s
+         - Bob: !wiggle → wiggle: 30s
+         - Charlie: !dance → dance: 30s (new votes!)
          - All buckets still counting down
 
 T=12s:  Dance finishes
@@ -161,13 +161,13 @@ T=12s:  Dance finishes
 
 **4. Message Grabber** (`message_grabber.py`)
 - Receives Twitch chat messages
-- Filters by `!pupper` prefix
+- Filters by `!` prefix
 - Wires all components together
 
 ### Data Flow
 
 ```
-Twitch Chat Message: "!pupper dance"
+Twitch Chat Message: "!dance"
          ↓
 MessageGrabber (event_message)
          ↓
@@ -209,7 +209,7 @@ COUNTDOWN_INTERVAL=1.0     # Tick rate for decay
 
 **Chat Processing:**
 ```bash
-PUPPER_COMMAND_PREFIX=!pupper   # Command trigger
+PUPPER_COMMAND_PREFIX=!   # Command trigger
 PUPPER_BATCH_INTERVAL=3.0       # Message batching window
 PUPPER_MAX_REQUESTS_PER_MINUTE=12  # LLM rate limit
 ```
@@ -281,11 +281,11 @@ MAX_BUCKET_TIME=30.0       # Low cap
 
 ```
 Chat activity:
-Alice:   !pupper dance
-Bob:     !pupper dance
-Charlie: !pupper dance
-Dave:    !pupper move_forward
-Eve:     !pupper move_forward
+Alice:   !dance
+Bob:     !dance
+Charlie: !dance
+Dave:    !move_forward
+Eve:     !move_forward
 
 Buckets:
 dance: 60s (3 votes, capped)
@@ -298,13 +298,13 @@ Winner: "dance" (first to hit cap, or tie-breaker)
 
 ```
 T=0s:
-Alice: !pupper dance → dance: 30s
+Alice: !dance → dance: 30s
 
 T=20s (no new votes):
 dance: 10s (decayed from 30s)
 
 T=20s:
-Bob: !pupper wiggle → wiggle: 30s
+Bob: !wiggle → wiggle: 30s
 
 T=25s (robot becomes idle):
 wiggle: 25s (winner!)
@@ -316,12 +316,12 @@ Execute: wiggle
 ### Scenario 3: Spam Resistance
 
 ```
-Alice: !pupper dance → dance: 30s ✓
-Alice: !pupper dance → REJECTED (already voted)
-Alice: !pupper wiggle → REJECTED (already voted this cycle)
+Alice: !dance → dance: 30s ✓
+Alice: !dance → REJECTED (already voted)
+Alice: !wiggle → REJECTED (already voted this cycle)
 
 (After dance executes and new cycle starts)
-Alice: !pupper wiggle → wiggle: 30s ✓
+Alice: !wiggle → wiggle: 30s ✓
 ```
 
 ### Scenario 4: Continuous Voting During Execution
@@ -330,9 +330,9 @@ Alice: !pupper wiggle → wiggle: 30s ✓
 T=0s: Execute "dance" (12s duration)
 
 During execution (T=0-12s):
-Alice: !pupper move_forward → move_forward: 30s
-Bob: !pupper move_forward → move_forward: 60s (capped)
-Charlie: !pupper turn_left → turn_left: 30s
+Alice: !move_forward → move_forward: 30s
+Bob: !move_forward → move_forward: 60s (capped)
+Charlie: !turn_left → turn_left: 30s
 
 T=12s: Dance finishes
 Buckets (after decay):

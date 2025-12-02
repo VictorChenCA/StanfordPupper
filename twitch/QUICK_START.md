@@ -3,7 +3,7 @@
 ## NEW: Bucket Voting System! 🗳️
 
 **Your chat now votes for commands democratically!**
-- Each `!pupper` message = 30 second vote for that command
+- Each `!` message = 30 second vote for that command
 - Most popular command wins and executes when robot finishes
 - Votes decay over time (keeps it dynamic)
 - One vote per user per execution cycle
@@ -66,9 +66,9 @@ python message_grabber.py
 ### 5. Test in Twitch Chat
 Go live on Twitch, then have viewers type:
 ```
-!pupper walk forward
-!pupper dance
-!pupper follow that person
+!walk forward
+!dance
+!follow that person
 ```
 
 ---
@@ -83,7 +83,7 @@ Go live on Twitch, then have viewers type:
 ### With This Implementation (✅ Good)
 ```
 100 chat messages/min
-  → Filter by !pupper → 10 command messages
+  → Filter by ! → 10 command messages
   → Batch for 3 seconds → 3 API calls/min
   → Pattern match 50% → 1.5 API calls/min
 

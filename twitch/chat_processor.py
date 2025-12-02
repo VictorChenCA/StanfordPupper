@@ -49,7 +49,7 @@ class ChatProcessor:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        command_prefix: str = "!pupper",
+        command_prefix: str = "!",
         batch_interval: float = 3.0,
         max_requests_per_minute: int = 12,
         model: str = "gpt-4o-mini",
@@ -60,7 +60,7 @@ class ChatProcessor:
 
         Args:
             api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
-            command_prefix: Prefix for commands (e.g., "!pupper")
+            command_prefix: Prefix for commands (e.g., "!")
             batch_interval: Seconds to wait before processing batch
             max_requests_per_minute: Rate limit for API calls
             model: OpenAI model to use (gpt-4o-mini is cheaper and faster)
@@ -406,7 +406,7 @@ async def main():
     
     # Create processor with voting
     processor = ChatProcessor(
-        command_prefix="!pupper",
+        command_prefix="!",
         batch_interval=3.0,
         max_requests_per_minute=12,
         voting_system=voting
@@ -416,10 +416,10 @@ async def main():
     await processor.start()
 
     # Simulate some messages
-    processor.add_message("alice", "!pupper walk forward")
-    processor.add_message("bob", "!pupper walk forward")
-    processor.add_message("charlie", "!pupper dance")
-    processor.add_message("dave", "!pupper turn left")
+    processor.add_message("alice", "!walk forward")
+    processor.add_message("bob", "!walk forward")
+    processor.add_message("charlie", "!dance")
+    processor.add_message("dave", "!turn left")
     processor.add_message("eve", "regular chat message")  # Won't be processed
 
     # Wait for processing

@@ -4,7 +4,7 @@ Let your Twitch viewers control your Stanford Pupper robot! This integration use
 
 ## 🎯 What Is This?
 
-Your Twitch chat can now control Pupper by typing commands like `!pupper dance` or `!pupper follow that person`. Instead of chaotic individual commands, viewers **vote together** - the most popular command executes when the robot is ready.
+Your Twitch chat can now control Pupper by typing commands like `!dance` or `!follow that person`. Instead of chaotic individual commands, viewers **vote together** - the most popular command executes when the robot is ready.
 
 ### Key Features
 
@@ -81,9 +81,9 @@ First run will open a browser for Twitch authentication. After that, you're good
 
 Go live on Twitch and have viewers type:
 ```
-!pupper dance
-!pupper move forward
-!pupper follow that person
+!dance
+!move forward
+!follow that person
 ```
 
 Watch as votes accumulate and the most popular command executes! 🎉
@@ -96,9 +96,9 @@ Think of it like a **live poll** that's always running:
 
 ```
 Viewers vote:
-Alice:   !pupper dance          → dance bucket gets +30 seconds
-Bob:     !pupper dance          → dance bucket gets +30 seconds (now 60s)
-Charlie: !pupper move_forward   → move_forward bucket gets +30 seconds
+Alice:   !dance          → dance bucket gets +30 seconds
+Bob:     !dance          → dance bucket gets +30 seconds (now 60s)
+Charlie: !move_forward   → move_forward bucket gets +30 seconds
 
 All buckets count down 1 second per second...
 
@@ -119,7 +119,7 @@ Execute dance → Clear dance bucket → New round begins
 
 ## 📋 Available Commands
 
-Type `!pupper` followed by:
+Type `!` followed by:
 
 **Movement**
 - `walk forward` / `move forward`
@@ -139,9 +139,9 @@ Type `!pupper` followed by:
 - `bark` (1 second)
 
 **Natural Language** (uses AI)
-- `!pupper can you walk forward and then turn left?`
-- `!pupper do a little dance!`
-- `!pupper follow the cat and then wiggle`
+- `!can you walk forward and then turn left?`
+- `!do a little dance!`
+- `!follow the cat and then wiggle`
 
 ---
 
@@ -151,7 +151,7 @@ Edit `.env` to customize:
 
 ```bash
 # Command prefix (what viewers type)
-PUPPER_COMMAND_PREFIX=!pupper
+PUPPER_COMMAND_PREFIX=!
 
 # Voting settings
 VOTE_DURATION=30.0          # Seconds added per vote
@@ -172,9 +172,9 @@ PUPPER_MAX_REQUESTS_PER_MINUTE=12  # LLM rate limit
 ## 🏗️ Architecture
 
 ```
-Twitch Message: "!pupper dance"
+Twitch Message: "!dance"
        ↓
-Filter by prefix (!pupper)
+Filter by prefix (!)
        ↓
 Extract command (pattern match or LLM)
        ↓
