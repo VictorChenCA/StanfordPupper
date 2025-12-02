@@ -377,7 +377,6 @@ IMPORTANT:
                         {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": text},
                     ],
-                    temperature=0.3,
                     max_output_tokens=100,
                 )
 
