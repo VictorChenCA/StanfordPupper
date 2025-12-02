@@ -202,8 +202,8 @@ Structure: "[Conversational response]. [Commands in sequence]."
 ====================================
 COMMAND SYNONYMS
 ====================================
-move_forwards: "forward", "forwards", "ahead", "go forward", "walk forward", "move forward"
-move_backwards: "backward", "backwards", "back", "reverse", "go back"
+move_forward: "forward", "forwards", "ahead", "go forward", "walk forward", "move forward"
+move_backward: "backward", "backwards", "back", "reverse", "go back"
 move_left: "left", "go left", "strafe left"
 move_right: "right", "go right", "strafe right"
 turn_left: "turn left", "rotate left", "spin left"
@@ -459,19 +459,47 @@ CRITICAL RULES
                 )
 
             response = await asyncio.to_thread(_call_openai)
+            line = response.output_text
             logger.info("Extracted response from LLM:")
-            logger.info(response.output_text)
+            logger.info(line)
+            commands = []
+            # parse commands from response (which is a natural sentence now)
+            if "start_tracking" in line and '[' in line and ']' in line:
+                obj_name = line[line.find('[')+1:line.find(']')].strip()
+                commands.append("track_" + obj_name)
+            command_dict = {
+            "stop_tracking": "stop_tracking",
+            "move_forwards": "move_forward", 
+            "move_forward": "move_forward",
+            "move_backwards": "move_backward", 
+            "move_backward": "move_backward",
+            "move_left": "move_left", 
+            "move_right": "move_right", 
+            "turn_left": "turn_left", 
+            "turn_right": "turn_right", 
+            "bob": "bob", 
+            "wiggle": "wiggle", 
+            "dance": "dance",
+            "bark": "bark"}
+        
+        # Search for each command keyword in the line
+            for keyword, canonical_command in command_dict.items():
+                if keyword in line:
+                    commands.append(canonical_command)
+        
+                if not commands:
+                    logger.debug(f"No commands found in line: {line}")
 
             self.api_calls_made += 1
             self._record_request()
 
             # Parse response using the Responses API helper
-            content = response.output_text
-            if not content:
-                return []
+            # content = response.output_text
+            # if not content:
+            #     return []
 
             # Split into lines and clean
-            commands = [line.strip() for line in content.split('\n') if line.strip()]
+            # commands = [line.strip() for line in content.split('\n') if line.strip()]
             return commands
 
         except Exception as e:
