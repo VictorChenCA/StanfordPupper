@@ -66,7 +66,7 @@ BOT_ID = os.getenv("BOT_ID")  # The Account ID of the bot user...
 OWNER_ID = BOT_ID  # We are using the streaming account to read stream messages so bot_id and owner_id are the same.
 
 # Chat processor configuration
-COMMAND_PREFIX = os.getenv("PUPPER_COMMAND_PREFIX", "!")
+COMMAND_PREFIX = os.getenv("PUPPER_COMMAND_PREFIX", "#")
 BATCH_INTERVAL = float(os.getenv("PUPPER_BATCH_INTERVAL", "3.0"))
 MAX_REQUESTS_PER_MINUTE = int(os.getenv("PUPPER_MAX_REQUESTS_PER_MINUTE", "12"))
 
@@ -123,7 +123,7 @@ class Bot(commands.AutoBot):
             client_secret=CLIENT_SECRET,
             bot_id=BOT_ID,
             owner_id=OWNER_ID,
-            prefix="!", #if we run commands this is probably what we can edit to change prefixes
+            prefix="#", #if we run commands this is probably what we can edit to change prefixes
             subscriptions=subs,
             force_subscribe=True,
         )
