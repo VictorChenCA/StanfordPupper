@@ -33,7 +33,7 @@ class ChatMessage:
     text: str
     timestamp: float
     broadcaster: str
-    donation: bool
+    donation: bool = False
 
 
 class ChatProcessor:
@@ -188,7 +188,7 @@ IMPORTANT:
                 pass
         logger.info(f"Chat processor stopped (API calls: {self.api_calls_made}, commands: {self.commands_processed})")
 
-    def add_message(self, username: str, text: str, broadcaster: str = ""):
+    def add_message(self, username: str, text: str, broadcaster: str = "", donation: bool = False):
         """
         Add a message to the processing queue.
         Only adds messages that start with the command prefix.
@@ -214,7 +214,7 @@ IMPORTANT:
             text=command_text,
             timestamp=time.time(),
             broadcaster=broadcaster,
-            donation=donation
+            donation=donation,
         )
 
         self.message_queue.append(msg)

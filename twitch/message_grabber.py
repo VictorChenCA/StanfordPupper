@@ -219,7 +219,7 @@ class MyComponent(commands.Component):
 
         # Pass message to chat processor (will filter by command prefix)
         self.bot.chat_processor.add_message(
-            donation=True,
+            donation=False,
             username=payload.chatter.name,
             text=payload.text,
             broadcaster=payload.broadcaster.name
