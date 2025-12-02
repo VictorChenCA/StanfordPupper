@@ -16,10 +16,10 @@ from datetime import datetime
 import os
 
 try:
-    import openai
+    from openai import OpenAI
 except ImportError:
     print("Warning: openai package not installed. Run: pip install openai")
-    openai = None
+    OpenAI = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -73,16 +73,18 @@ class ChatProcessor:
         self.voting_system = voting_system
 
         # Initialize OpenAI
-        if openai is None:
+        if OpenAI is None:
             logger.error("OpenAI package not installed. Install with: pip install openai")
             self._openai_configured = False
+            self._openai_client = None
         else:
             api_key = api_key or os.getenv("OPENAI_API_KEY")
             if not api_key:
                 logger.warning("No OpenAI API key provided. Set OPENAI_API_KEY environment variable.")
                 self._openai_configured = False
+                self._openai_client = None
             else:
-                openai.api_key = api_key
+                self._openai_client = OpenAI(api_key=api_key)
                 self._openai_configured = True
 
         # Message queue and processing
@@ -366,7 +368,7 @@ IMPORTANT:
         try:
             # Make API call (run sync client in a thread for compatibility)
             def _call_openai():
-                return openai.ChatCompletion.create(
+                return self._openai_client.chat.completions.create(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": self.system_prompt},
@@ -381,11 +383,8 @@ IMPORTANT:
             self.api_calls_made += 1
             self._record_request()
 
-            # Parse response
-            # Support both dict-style and attribute-style access depending on SDK version
-            choice = response.choices[0]
-            message = getattr(choice, "message", None) or choice["message"]
-            content = message["content"].strip() if isinstance(message, dict) else message.content.strip()
+            # Parse response (v1.0.0+ uses attribute access)
+            content = response.choices[0].message.content
             if not content:
                 return []
 
