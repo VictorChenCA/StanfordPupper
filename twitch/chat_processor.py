@@ -393,6 +393,8 @@ IMPORTANT:
 
             # Split into lines and clean
             commands = [line.strip() for line in content.split('\n') if line.strip()]
+            print("Extracted commands from LLM:")
+            print(commands)
             return commands
 
         except Exception as e:
