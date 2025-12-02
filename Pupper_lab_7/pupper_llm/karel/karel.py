@@ -347,7 +347,7 @@ Text to check:"""
                     "Content-Type": "application/json"
                 }
                 data = {
-                    "text": text,
+                    "text": filtered_text,
                     "model_id": "eleven_monolingual_v1",
                     "voice_settings": {
                         "stability": 0.5,
@@ -373,7 +373,7 @@ Text to check:"""
             try:
                 import pyttsx3
                 engine = pyttsx3.init()
-                engine.say(text)
+                engine.say(filtered_text)
                 engine.runAndWait()
                 self.node.get_logger().info('Using pyttsx3 fallback TTS')
                 return  # pyttsx3 plays directly, no file needed
