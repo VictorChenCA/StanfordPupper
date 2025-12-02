@@ -209,7 +209,8 @@ IMPORTANT:
             username=username,
             text=command_text,
             timestamp=time.time(),
-            broadcaster=broadcaster
+            broadcaster=broadcaster,
+            donation=donation
         )
 
         self.message_queue.append(msg)
