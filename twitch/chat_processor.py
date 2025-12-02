@@ -461,7 +461,7 @@ CRITICAL RULES
             response = await asyncio.to_thread(_call_openai)
             line = response.output_text
             logger.info("Extracted response from LLM:")
-            logger.info(line)
+            logger.info(response)
             commands = []
             # parse commands from response (which is a natural sentence now)
             if "start_tracking" in line and '[' in line and ']' in line:
