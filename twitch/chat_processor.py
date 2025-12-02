@@ -198,6 +198,9 @@ IMPORTANT:
             text: Message text
             broadcaster: Broadcaster name
         """
+        
+        print("[!!!] add_message CALLED — DEPRECATED")
+            
         # Filter by command prefix
         if not text.strip().lower().startswith(self.command_prefix):
             print(f"📝 Message '{text}' doesn't start with '{self.command_prefix}' - ignoring", flush=True)
@@ -280,24 +283,24 @@ IMPORTANT:
             #             await self._on_command_extracted(msg.username, cmd)
             # else:
                 # Use LLM for complex/ambiguous commands
-                commands = await self._extract_commands_with_llm(msg.text)
-                if commands:
-                    logger.info(f"LLM extracted from '{msg.text}' -> {commands}")
-                    self.commands_processed += len(commands)
+            commands = await self._extract_commands_with_llm(msg.text)
+            if commands:
+                logger.info(f"LLM extracted from '{msg.text}' -> {commands}")
+                self.commands_processed += len(commands)
 
-                    # Register votes in voting system
-                    if self.voting_system:
-                        # For compound commands, join them with spaces so they can be parsed on one line
-                        # Karel's extract_commands_from_line searches for all keywords in a line
-                        if len(commands) > 1:
-                            command_sequence = " ".join(commands)
-                            self.voting_system.add_vote(msg.username, command_sequence)
-                        else:
-                            self.voting_system.add_vote(msg.username, commands[0])
+                # Register votes in voting system
+                if self.voting_system:
+                    # For compound commands, join them with spaces so they can be parsed on one line
+                    # Karel's extract_commands_from_line searches for all keywords in a line
+                    if len(commands) > 1:
+                        command_sequence = " ".join(commands)
+                        self.voting_system.add_vote(msg.username, command_sequence)
                     else:
-                        # Legacy callback mode
-                        for cmd in commands:
-                            await self._on_command_extracted(msg.username, cmd)
+                        self.voting_system.add_vote(msg.username, commands[0])
+                else:
+                    # Legacy callback mode
+                    for cmd in commands:
+                        await self._on_command_extracted(msg.username, cmd)
 
     def _try_pattern_match(self, text: str) -> List[str]:
         """
