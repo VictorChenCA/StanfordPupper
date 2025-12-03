@@ -174,6 +174,10 @@ When commands are present:
   - Stop command → stop_tracking only
   - Other command → execute command, keep tracking active
 
+**SPECIAL: Say command**
+- Extract text in brackets: say [Hello everyone!]   
+- Include in command sequence as is
+
 ====================================
 OUTPUT FORMAT
 ====================================
@@ -215,6 +219,7 @@ dance: "dance", "boogie", "groove"
 bark: "bark", "woof", "speak", "make noise"
 start_tracking: "track", "follow", "chase", "watch"
 stop_tracking: "stop tracking", "stop following", "untrack", "stop chasing"
+say: "say", "speak", "talk" (followed by text in brackets, same as start_tracking)
 
 ====================================
 CANONICAL COMMANDS
