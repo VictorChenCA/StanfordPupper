@@ -4,12 +4,13 @@ Let your Twitch viewers control your Stanford Pupper robot! This integration use
 
 ## 🎯 What Is This?
 
-Your Twitch chat can now control Pupper by typing commands like `!dance` or `!follow that person`. Instead of chaotic individual commands, viewers **vote together** - the most popular command executes when the robot is ready.
+Your Twitch chat can now **control AND chat with** your Stanford Pupper robot! Type commands like `!dance` to control actions, or use `@what's your favorite color?` to have conversations. Instead of chaotic individual commands, viewers **vote together** - the most popular command executes when the robot is ready, while conversation messages get friendly AI-powered responses.
 
 ### Key Features
 
+- 💬 **Dual Interaction System** - Commands (`!`) for actions, conversations (`@`) for chatting
 - 🗳️ **Democratic Voting** - Chat votes for actions, most popular wins
-- 🤖 **Smart Command Processing** - Natural language support via OpenAI
+- 🤖 **Smart AI Integration** - Natural language commands + conversational personality
 - 🛡️ **Spam Resistant** - One vote per user per round
 - ⚡ **Efficient** - Pattern matching for common commands (minimal API usage)
 - 🎮 **Action-Paced** - Executes when robot finishes (no overlapping commands)
@@ -79,14 +80,23 @@ First run will open a browser for Twitch authentication. After that, you're good
 
 ### 5. Test in Your Stream
 
-Go live on Twitch and have viewers type:
+Go live on Twitch and have viewers interact with Pupper:
+
+**Commands (with `!`):**
 ```
 !dance
 !move forward
 !follow that person
 ```
 
-Watch as votes accumulate and the most popular command executes! 🎉
+**Conversations (with `@`):**
+```
+@what's your favorite color?
+@how are you?
+@do you like treats?
+```
+
+Watch as command votes accumulate and Pupper responds to conversations! 🎉
 
 ---
 
@@ -117,31 +127,47 @@ Execute dance → Clear dance bucket → New round begins
 
 ---
 
-## 📋 Available Commands
+## 📋 How to Interact with Pupper
 
-Type `!` followed by:
+Pupper now understands two types of messages:
+
+### 🎮 Commands (Use `!` prefix)
+
+Type `!` followed by an action to control Pupper:
 
 **Movement**
-- `walk forward` / `move forward`
-- `move backward` / `move back`
-- `turn left` / `turn right`
-- `move left` / `move right`
+- `!walk forward` / `!move forward`
+- `!move backward` / `!move back`
+- `!turn left` / `!turn right`
+- `!move left` / `!move right`
 
 **Tracking**
-- `follow that person`
-- `track the dog`
-- `stop tracking` / `stop`
+- `!follow that person`
+- `!track the dog`
+- `!stop tracking` / `!stop`
 
 **Behaviors**
-- `dance` (12 seconds)
-- `wiggle` (5.5 seconds)
-- `bob` (5.5 seconds)
-- `bark` (1 second)
+- `!dance` (12 seconds)
+- `!wiggle` (5.5 seconds)
+- `!bob` (5.5 seconds)
+- `!bark` (1 second)
 
 **Natural Language** (uses AI)
 - `!can you walk forward and then turn left?`
 - `!do a little dance!`
 - `!follow the cat and then wiggle`
+
+### 💬 Conversations (Use `@` prefix)
+
+Type `@` to chat with Pupper and get conversational responses:
+
+**Example Conversations:**
+- `@what's your favorite color?` → "I love blue! It reminds me of the sky on walkies days!"
+- `@how are you?` → "I'm doing pawsome! Thanks for asking! *wags tail*"
+- `@do you like treats?` → "Oh my gosh, YES! Treats are the best thing ever!"
+- `@tell me about yourself` → Pupper will respond with personality and charm!
+
+**Note:** Conversation messages (`@`) do NOT trigger commands - they're purely for chatting with Pupper!
 
 ---
 
@@ -150,8 +176,9 @@ Type `!` followed by:
 Edit `.env` to customize:
 
 ```bash
-# Command prefix (what viewers type)
-PUPPER_COMMAND_PREFIX=!
+# Interaction prefixes
+PUPPER_COMMAND_PREFIX=!         # For commands (e.g., !dance)
+PUPPER_CONVERSATION_PREFIX=@    # For chatting (e.g., @how are you?)
 
 # Voting settings
 VOTE_DURATION=30.0          # Seconds added per vote

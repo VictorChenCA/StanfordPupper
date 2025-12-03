@@ -67,6 +67,7 @@ OWNER_ID = BOT_ID  # We are using the streaming account to read stream messages 
 
 # Chat processor configuration
 COMMAND_PREFIX = os.getenv("PUPPER_COMMAND_PREFIX", "!")
+CONVERSATION_PREFIX = os.getenv("PUPPER_CONVERSATION_PREFIX", "@")
 BATCH_INTERVAL = float(os.getenv("PUPPER_BATCH_INTERVAL", "3.0"))
 MAX_REQUESTS_PER_MINUTE = int(os.getenv("PUPPER_MAX_REQUESTS_PER_MINUTE", "12"))
 
@@ -113,6 +114,7 @@ class Bot(commands.AutoBot):
         # Initialize chat processor with voting system
         self.chat_processor = ChatProcessor(
             command_prefix=COMMAND_PREFIX,
+            conversation_prefix=CONVERSATION_PREFIX,
             batch_interval=BATCH_INTERVAL,
             max_requests_per_minute=MAX_REQUESTS_PER_MINUTE,
             voting_system=voting_system
