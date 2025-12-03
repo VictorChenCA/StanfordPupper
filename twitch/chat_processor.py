@@ -436,7 +436,7 @@ CRITICAL RULES
                         {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": text},
                     ],
-                    max_output_tokens=100,
+                    max_output_tokens=1000,
                 )
 
             response = await asyncio.to_thread(_call_openai)
