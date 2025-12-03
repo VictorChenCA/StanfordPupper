@@ -37,6 +37,7 @@ class ChatMessage:
     timestamp: float
     broadcaster: str
     donation: bool = False
+    donation_amount: float = 0.0  # Donation amount in bits/currency
     is_conversation: bool = False
 
 
@@ -300,7 +301,7 @@ CRITICAL RULES
                 pass
         logger.info(f"Chat processor stopped (API calls: {self.api_calls_made}, commands: {self.commands_processed})")
 
-    def add_message(self, username: str, text: str, broadcaster: str = "", donation: bool = False):
+    def add_message(self, username: str, text: str, broadcaster: str = "", donation: bool = False, donation_amount: float = 0.0):
         """
         Add a message to the processing queue.
         Accepts messages starting with command prefix (!) or conversation prefix (@).
@@ -310,6 +311,7 @@ CRITICAL RULES
             text: Message text
             broadcaster: Broadcaster name
             donation: Whether this is a donation message
+            donation_amount: Donation amount in bits/currency (0 for regular messages)
         """
         text_stripped = text.strip()
         text_lower = text_stripped.lower()
@@ -341,6 +343,7 @@ CRITICAL RULES
             timestamp=time.time(),
             broadcaster=broadcaster,
             donation=donation,
+            donation_amount=donation_amount,
             is_conversation=is_conversation,
         )
 
@@ -424,9 +427,9 @@ CRITICAL RULES
                     # Karel's extract_commands_from_line searches for all keywords in a line
                     if len(commands) > 1:
                         command_sequence = " ".join(commands)
-                        self.voting_system.add_vote(msg.username, command_sequence)
+                        self.voting_system.add_vote(msg.username, command_sequence, msg.donation_amount)
                     else:
-                        self.voting_system.add_vote(msg.username, commands[0])
+                        self.voting_system.add_vote(msg.username, commands[0], msg.donation_amount)
                 else:
                     # Legacy callback mode
                     for cmd in commands:

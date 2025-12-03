@@ -229,13 +229,17 @@ class MyComponent(commands.Component):
 
     @commands.Component.listener()
     async def event_donation(self, payload: twitchio.ChannelCheer) -> None:
-        """Process incoming Twitch chat messages and pass to chat processor."""
+        """Process incoming Twitch donation (cheer/bits) and pass to chat processor."""
+        # Extract bits amount from the payload
+        bits_amount = getattr(payload, 'bits', 0)
+
         message = f"[{payload.broadcaster.name}] - {payload.user.name}: {payload.message}"
-        print(f"🎮 DONATION RECEIVED: [{payload.broadcaster.name}] - {payload.user.name}: {payload.message}", flush=True)
+        print(f"💰 DONATION RECEIVED: [{payload.broadcaster.name}] - {payload.user.name} ({bits_amount} bits): {payload.message}", flush=True)
 
         # Pass message to chat processor (will filter by command prefix)
         self.bot.chat_processor.add_message(
             donation=True,
+            donation_amount=float(bits_amount),
             username=payload.user.name,
             text=payload.message,
             broadcaster=payload.broadcaster.name
