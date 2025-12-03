@@ -437,6 +437,7 @@ CRITICAL RULES
                         {"role": "user", "content": text},
                     ],
                     max_output_tokens=1000,
+                    reasoning = {"effort": "none"}
                 )
 
             response = await asyncio.to_thread(_call_openai)
