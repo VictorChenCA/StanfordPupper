@@ -288,13 +288,13 @@ Rules:
 
 Text to check:"""
 
-            response = client.chat.completions.create(
+            response = client.responses.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": filter_prompt},
                     {"role": "user", "content": text}
                 ],
-                max_tokens=1000,
+                max_output_tokens=1000,
             )
 
             # Extract response
