@@ -454,6 +454,9 @@ CRITICAL RULES
             if "start_tracking" in line and '[' in line and ']' in line:
                 obj_name = line[line.find('[')+1:line.find(']')].strip()
                 commands.append("track_" + obj_name)
+            if "say" in line and '[' in line and ']' in line:
+                obj_name = line[line.find('['):line.find(']')+1].strip()
+                commands.append("say " + obj_name)
             command_dict = {
             "stop_tracking": "stop_tracking",
             "move_forwards": "move_forward", 
