@@ -137,24 +137,35 @@ class KarelRealtimeCommanderNode(Node):
         """
         commands = []
         
+        line_lower = line.lower()
+
         # Handle start_tracking with [object] syntax first
         if "start_tracking" in line and '[' in line and ']' in line:
             obj_name = line[line.find('[')+1:line.find(']')].strip()
             commands.append("track_" + obj_name)
-        
+
+        # Handle say/speak/talk commands with [text] parameter
+        say_keywords = ["say", "speak", "talk"]
+        for keyword in say_keywords:
+            if keyword in line_lower and '[' in line and ']' in line:
+                text_content = line[line.find('[')+1:line.find(']')].strip()
+                if text_content:
+                    commands.append(f"say [{text_content}]")
+                    break
+
         # Define command keywords and their canonical forms
         command_dict = {
             "stop_tracking": "stop_tracking",
-            "move_forwards": "move_forward", 
+            "move_forwards": "move_forward",
             "move_forward": "move_forward",
-            "move_backwards": "move_backward", 
+            "move_backwards": "move_backward",
             "move_backward": "move_backward",
-            "move_left": "move_left", 
-            "move_right": "move_right", 
-            "turn_left": "turn_left", 
-            "turn_right": "turn_right", 
-            "bob": "bob", 
-            "wiggle": "wiggle", 
+            "move_left": "move_left",
+            "move_right": "move_right",
+            "turn_left": "turn_left",
+            "turn_right": "turn_right",
+            "bob": "bob",
+            "wiggle": "wiggle",
             "dance": "dance",
             "bark": "bark"
         }
@@ -183,6 +194,13 @@ class KarelRealtimeCommanderNode(Node):
             #   Use: object_name = command.split("_", 1)[1]
             # - If command is "stop_tracking", call self.pupper.end_tracking()
             # - Use await asyncio.sleep(0.5) after each tracking command
+            # Handle say command with text parameter: say [text]
+            if command.startswith("say [") and command.endswith("]"):
+                text_content = command[5:-1]  # Extract text between "say [" and "]"
+                self.pupper.say(text_content)
+                await asyncio.sleep(3.0)  # Approximate speech duration
+                return True
+
             if "track_" in command:
                 obj_name = command[6:]
                 self.pupper.begin_tracking(obj_name)

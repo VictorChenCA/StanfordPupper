@@ -110,6 +110,7 @@ def check_python_packages():
         "asqlite": "asqlite",
         "openai": "OpenAI",
         "dotenv": "python-dotenv",
+        "pyttsx3": "pyttsx3",  # TTS fallback for !say command
     }
 
     missing_packages = []

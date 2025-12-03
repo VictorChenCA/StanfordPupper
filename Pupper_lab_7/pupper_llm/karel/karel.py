@@ -1,6 +1,7 @@
-# karel.py - Enhanced with Object Tracking
+# karel.py - Enhanced with Object Tracking and TTS
 import time
 import os
+import tempfile
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
@@ -239,7 +240,7 @@ class KarelPupper:
     def bark(self):
         self.node.get_logger().info('Bark...')
         pygame.mixer.init()
-        
+
         # Directory-independent path to sound file
         # Get the directory of this file, then navigate to sounds directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -251,6 +252,170 @@ class KarelPupper:
         bark_sound.play()
         self.node.get_logger().info(f'Playing bark sound from: {bark_sound_path}')
         self.stop()
+
+    def _filter_text_with_gpt(self, text: str) -> str:
+        """
+        Filter text through ChatGPT to ensure it's appropriate for a robot dog to say.
+
+        Args:
+            text: The original text to filter
+
+        Returns:
+            Filtered text, or empty string if content should be blocked
+        """
+        try:
+            import openai
+
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                self.node.get_logger().warning('No OpenAI API key for filtering, allowing text')
+                return text
+
+            openai.api_key = api_key
+
+            filter_prompt = """You are a content filter for a robot dog named Pupper that speaks to live audiences including children.
+
+Your job is to check if the given text is appropriate for Pupper to say out loud.
+
+Rules:
+- Block profanity, slurs, hate speech, or inappropriate content
+- Block anything sexual, violent, or harmful
+- Block personal attacks or bullying
+- Allow friendly, playful, and wholesome messages
+- If the text is inappropriate, respond with exactly: BLOCKED
+- If the text is appropriate, respond with the original text (you may clean up minor issues)
+- Keep responses short and dog-friendly
+
+Text to check:"""
+
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": filter_prompt},
+                    {"role": "user", "content": text}
+                ],
+                temperature=0.1,
+                max_tokens=150,
+                timeout=5
+            )
+
+            # Extract response
+            result = response.choices[0].message.content.strip()
+
+            if result.upper() == "BLOCKED" or "BLOCKED" in result.upper():
+                self.node.get_logger().warning(f'Content blocked by filter: {text}')
+                return ""
+
+            self.node.get_logger().info(f'Content approved: {result}')
+            return result
+
+        except Exception as e:
+            self.node.get_logger().error(f'Content filter error: {e}, allowing original text')
+            return text  # On error, allow the text through
+
+    def say(self, text: str):
+        """
+        Speak the given text using ElevenLabs TTS with pyttsx3 fallback.
+        Text is filtered through ChatGPT before being spoken.
+
+        Args:
+            text: The text to speak
+        """
+        self.node.get_logger().info(f'Say request: {text}')
+
+        # Filter text through ChatGPT
+        filtered_text = self._filter_text_with_gpt(text)
+        if not filtered_text:
+            self.node.get_logger().info('Text was blocked by content filter')
+            return
+
+        self.node.get_logger().info(f'Speaking: {filtered_text}')
+
+        audio_file = None
+
+        # Try ElevenLabs first
+        api_key = os.getenv('ELEVENLABS_API_KEY')
+        voice_id = os.getenv('ELEVENLABS_VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
+        self.node.get_logger().info(f'ElevenLabs API key set: {bool(api_key)}, Voice ID: {voice_id}')
+
+        if api_key:
+            try:
+                import requests
+
+                url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+                headers = {
+                    "xi-api-key": api_key,
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "text": filtered_text,
+                    "model_id": "eleven_monolingual_v1",
+                    "voice_settings": {
+                        "stability": 0.5,
+                        "similarity_boost": 0.5
+                    }
+                }
+
+                self.node.get_logger().info(f'Calling ElevenLabs API...')
+                response = requests.post(url, json=data, headers=headers, timeout=10)
+                self.node.get_logger().info(f'ElevenLabs response: {response.status_code}')
+
+                if response.status_code == 200:
+                    # Save to temp file
+                    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as f:
+                        f.write(response.content)
+                        audio_file = f.name
+                    self.node.get_logger().info(f'Using ElevenLabs TTS, saved to {audio_file}')
+                else:
+                    self.node.get_logger().warning(f'ElevenLabs API error: {response.status_code} - {response.text[:200]}')
+            except Exception as e:
+                self.node.get_logger().warning(f"ElevenLabs failed: {type(e).__name__}: {e}")
+        else:
+            self.node.get_logger().info('No ELEVENLABS_API_KEY set, skipping ElevenLabs')
+
+        # Fallback to pyttsx3
+        if audio_file is None:
+            self.node.get_logger().info('Trying pyttsx3 fallback...')
+            try:
+                import pyttsx3
+                self.node.get_logger().info(f'pyttsx3 module: {pyttsx3}, file: {getattr(pyttsx3, "__file__", "unknown")}')
+                engine = pyttsx3.init()
+                self.node.get_logger().info('pyttsx3 engine created')
+                engine.say(filtered_text)
+                engine.runAndWait()
+                self.node.get_logger().info('Using pyttsx3 fallback TTS')
+                return  # pyttsx3 plays directly, no file needed
+            except Exception as e:
+                self.node.get_logger().error(f"pyttsx3 fallback failed: {type(e).__name__}: {e}")
+                # Try espeak as last resort on Linux/Pi
+                self.node.get_logger().info('Trying espeak as last resort...')
+                try:
+                    import subprocess
+                    subprocess.run(['espeak', filtered_text], check=True, timeout=10)
+                    self.node.get_logger().info('Used espeak fallback')
+                    return
+                except Exception as espeak_err:
+                    self.node.get_logger().error(f"espeak also failed: {espeak_err}")
+                return
+
+        # Play ElevenLabs audio file with pygame
+        if audio_file:
+            try:
+                pygame.mixer.init()
+                pygame.mixer.music.load(audio_file)
+                pygame.mixer.music.play()
+                # Wait for playback to finish
+                while pygame.mixer.music.get_busy():
+                    time.sleep(0.1)
+                self.node.get_logger().info('Finished speaking')
+            except Exception as e:
+                self.node.get_logger().error(f"Audio playback failed: {e}")
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(audio_file)
+                except:
+                    pass
     
     def dance(self):
         self.node.get_logger().info('Rick Rolling...')

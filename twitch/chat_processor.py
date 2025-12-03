@@ -385,53 +385,34 @@ CRITICAL RULES
         """
         text_lower = text.lower().strip()
 
-        # Split on common separators for compound commands
-        # e.g., "turn right, move forward, and bark"
-        separators = [', and ', ' and then ', ' then ', ', ']
+        # Check exact matches
+        for pattern, command in self.simple_patterns.items():
+            if pattern in text_lower:
+                return [command]
 
-        # Try to split the text into parts
-        parts = [text_lower]
-        for sep in separators:
-            new_parts = []
-            for part in parts:
-                new_parts.extend(part.split(sep))
-            parts = new_parts
+        # Check tracking patterns
+        tracking_keywords = ["follow", "track", "chase"]
+        object_keywords = ["person", "dog", "cat", "ball", "human", "people"]
 
-        # Try to match each part
-        matched_commands = []
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
+        for keyword in tracking_keywords:
+            if keyword in text_lower:
+                # Try to find object
+                for obj in object_keywords:
+                    if obj in text_lower:
+                        return [f"start_tracking [{obj}]"]
+                # Default to person if no object specified
+                return ["start_tracking [person]"]
 
-            # Check exact matches
-            found = False
-            for pattern, command in self.simple_patterns.items():
-                if pattern in part:
-                    matched_commands.append(command)
-                    found = True
-                    break
+        # Check say/speak/talk patterns - extract text after keyword
+        say_keywords = ["say ", "speak ", "talk "]
+        for keyword in say_keywords:
+            if text_lower.startswith(keyword):
+                # Extract the text to speak (everything after the keyword)
+                text_to_speak = text[len(keyword):].strip()
+                if text_to_speak:
+                    return [f"say [{text_to_speak}]"]
 
-            # If no simple pattern, check tracking patterns
-            if not found:
-                tracking_keywords = ["follow", "track", "chase"]
-                object_keywords = ["person", "dog", "cat", "ball", "human", "people"]
-
-                for keyword in tracking_keywords:
-                    if keyword in part:
-                        # Try to find object
-                        for obj in object_keywords:
-                            if obj in part:
-                                matched_commands.append(f"start_tracking [{obj}]")
-                                found = True
-                                break
-                        if not found:
-                            # Default to person if no object specified
-                            matched_commands.append("start_tracking [person]")
-                            found = True
-                        break
-
-        return matched_commands
+        return []
 
     async def _extract_commands_with_llm(self, text: str) -> List[str]:
         """
