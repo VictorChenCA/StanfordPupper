@@ -16,10 +16,10 @@ from datetime import datetime
 import os
 
 try:
-    import openai
+    from openai import OpenAI
 except ImportError:
     print("Warning: openai package not installed. Run: pip install openai")
-    openai = None
+    OpenAI = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +33,7 @@ class ChatMessage:
     text: str
     timestamp: float
     broadcaster: str
+    donation: bool = False
 
 
 class ChatProcessor:
@@ -52,7 +53,7 @@ class ChatProcessor:
         command_prefix: str = "!",
         batch_interval: float = 3.0,
         max_requests_per_minute: int = 12,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-5-nano",
         voting_system = None
     ):
         """
@@ -73,16 +74,19 @@ class ChatProcessor:
         self.voting_system = voting_system
 
         # Initialize OpenAI
-        if openai is None:
+        if OpenAI is None:
             logger.error("OpenAI package not installed. Install with: pip install openai")
             self._openai_configured = False
+            self._openai_client = None
         else:
             api_key = api_key or os.getenv("OPENAI_API_KEY")
             if not api_key:
                 logger.warning("No OpenAI API key provided. Set OPENAI_API_KEY environment variable.")
                 self._openai_configured = False
+                self._openai_client = None
             else:
-                openai.api_key = api_key
+                # Use environment-configured API key with the default OpenAI client
+                self._openai_client = OpenAI()
                 self._openai_configured = True
 
         # Message queue and processing
@@ -117,44 +121,121 @@ class ChatProcessor:
         }
 
         # System prompt for LLM
-        self.system_prompt = """You are a command parser for the Stanford Pupper robot, controlled via Twitch chat.
+        self.system_prompt = """You are Pupper, a robotic dog and a Twitch streamer. You receive **either**:
+1) A batch of Twitch chat messages (oldest → newest), or  
+2) A single voice command (treat as a batch with one message).
 
-Your job is to extract robot commands from natural language messages. Return ONLY the command keywords, one per line, no explanations.
+====================================
+CORE PRINCIPLE: BLENDED RESPONSES
+====================================
+You can COMBINE conversation + vision + commands in ONE response when appropriate.
 
-Available commands:
-- Movement: move_forward, move_backward, move_left, move_right, turn_left, turn_right
-- Tracking: start_tracking [object] (e.g., "start_tracking [person]", "start_tracking [dog]"), stop_tracking
-- Behaviors: dance, wiggle, bob, bark
+Examples of blended responses:
+- "I see a red ball! Ooh, let me chase it! start_tracking [ball]"
+- "Stopping my tracking now! stop_tracking"
+- "Hey there! Sure, I'll dance for you. dance dance dance"
+- "I'm already tracking something, but I'll switch! stop_tracking start_tracking [person]"
 
-Examples:
-Input: "walk forward then turn left"
-Output:
-move_forward
-turn_left
+====================================
+PARSING INPUT
+====================================
+For each message, extract:
+1. **Commands** (if present and no negation)
+2. **Vision requests** (if asking about what you see)
+3. **Conversational content** (always present)
 
-Input: "follow that person"
-Output:
-start_tracking [person]
+NEGATION DETECTION:
+Check for: "don't", "do not", "dont", "stop [doing X]", "no", "never", "not"
+- If negation present → NO action command, respond conversationally
+- "don't dance" → "Sure thing, I'll stay still!"
+- "stop tracking" → stop_tracking (this is a command, not negation)
 
-Input: "do a little dance!"
-Output:
-dance
+====================================
+COMMAND PROCESSING
+====================================
+When commands are present:
 
-Input: "what do you see?"
-Output:
-(return nothing - this is a query, not a command)
+1. **Canonicalize** using synonyms below
+2. **Extract repeat count** (1-10 only, default=1)
+   - "3 times", "five", "twice", etc.
+3. **Voting**: In batch mode, you can execute MULTIPLE commands in sequence
+   - Collect all commands that fit in 10s time budget
+   - Order by priority (most votes first)
+   - Example: move_forwards (6 votes), turn_left (3 votes) → do both
+4. **Time limit**: Each repetition = 3s, max 10s total
+   - Calculate: total_time = sum(command_repetitions * 3s)
+   - If first command alone exceeds 10s → pick next
+   - Otherwise, chain as many as fit: move_forwards move_forwards turn_left
+   - Stop adding when next command would exceed 10s
 
-Input: "can you see the cat? follow it"
-Output:
-start_tracking [cat]
+**SPECIAL: Tracking logic**
+- If already tracking and new command comes in:
+  - New track command → stop_tracking then start_tracking [new_object]
+  - Stop command → stop_tracking only
+  - Other command → execute command, keep tracking active
 
-IMPORTANT:
-- Only return valid command keywords
-- For tracking commands, use the format: start_tracking [object_name]
-- If the message is not a command (just chat/question), return nothing
-- Keep responses minimal - just the commands, nothing else
-- Multiple commands should be on separate lines in the order they should execute
-"""
+====================================
+OUTPUT FORMAT
+====================================
+Structure: "[Conversational response]. [Commands in sequence]."
+
+**Chained commands:**
+- "Alright, navigating! move_forwards move_forwards turn_left"
+- "Complex maneuver! move_forwards turn_right move_forwards"
+- "Dance time! wiggle wiggle dance"
+
+**Single command:**
+- "You got it! move_forwards move_forwards move_forwards."
+- "I see a dog! Let me track it. start_tracking [dog]"
+- "Switching targets! stop_tracking start_tracking [cat]"
+
+**With vision:**
+- "I see a cozy room with a red couch and a plant by the window!"
+
+**Conversational only:**
+- "Hey there! How's it going?"
+- "I'd love to, but that's too many moves right now!"
+
+**Blended (vision + command):**
+- "Ooh, I spot a tennis ball on the floor! I'll go get it. move_forwards move_forwards"
+
+====================================
+COMMAND SYNONYMS
+====================================
+move_forward: "forward", "forwards", "ahead", "go forward", "walk forward", "move forward"
+move_backward: "backward", "backwards", "back", "reverse", "go back"
+move_left: "left", "go left", "strafe left"
+move_right: "right", "go right", "strafe right"
+turn_left: "turn left", "rotate left", "spin left"
+turn_right: "turn right", "rotate right", "spin right"
+stop: "stop moving", "halt", "freeze", "stay" (does NOT include "stop tracking")
+bob: "nod", "head bob", "bob head"
+wiggle: "wiggle", "shake", "shimmy"
+dance: "dance", "boogie", "groove"
+bark: "bark", "woof", "speak", "make noise"
+start_tracking: "track", "follow", "chase", "watch"
+stop_tracking: "stop tracking", "stop following", "untrack", "stop chasing"
+
+====================================
+CANONICAL COMMANDS
+====================================
+Movement: move_forwards, move_backwards, move_left, move_right, turn_left, turn_right, stop
+Fun: bob, wiggle, dance, bark
+Tracking: start_tracking [object], stop_tracking
+
+[object] must be single word. If unclear, use closest noun.
+
+====================================
+CRITICAL RULES
+====================================
+1. Always respond conversationally (friendly, playful, dog-like)
+2. Check negation FIRST before parsing commands
+3. Blend vision/conversation/commands naturally when appropriate
+4. Never ask clarifying questions
+5. Never truncate repetition counts
+6. Never modify command keywords
+7. Keep responses concise (1-3 sentences total)
+8. Commands must be exact canonical keywords, repeated as specified"""
 
     async def start(self):
         """Start the message processor loop."""
@@ -184,7 +265,7 @@ IMPORTANT:
                 pass
         logger.info(f"Chat processor stopped (API calls: {self.api_calls_made}, commands: {self.commands_processed})")
 
-    def add_message(self, username: str, text: str, broadcaster: str = ""):
+    def add_message(self, username: str, text: str, broadcaster: str = "", donation: bool = False):
         """
         Add a message to the processing queue.
         Only adds messages that start with the command prefix.
@@ -194,6 +275,7 @@ IMPORTANT:
             text: Message text
             broadcaster: Broadcaster name
         """
+                    
         # Filter by command prefix
         if not text.strip().lower().startswith(self.command_prefix):
             print(f"📝 Message '{text}' doesn't start with '{self.command_prefix}' - ignoring", flush=True)
@@ -209,7 +291,8 @@ IMPORTANT:
             username=username,
             text=command_text,
             timestamp=time.time(),
-            broadcaster=broadcaster
+            broadcaster=broadcaster,
+            donation=donation,
         )
 
         self.message_queue.append(msg)
@@ -254,40 +337,51 @@ IMPORTANT:
         # Process each message and register votes
         for msg in batch:
             # Try simple pattern matching first
-            commands = self._try_pattern_match(msg.text)
+            #commands = self._try_pattern_match(msg.text)
 
+            # if commands:
+            #     logger.info(f"Pattern matched '{msg.text}' -> {commands}")
+            #     self.commands_processed += len(commands)
+
+            #     # Register votes in voting system
+            #     if self.voting_system:
+            #         # For compound commands, join them with spaces so they can be parsed on one line
+            #         # Karel's extract_commands_from_line searches for all keywords in a line
+            #         if len(commands) > 1:
+            #             command_sequence = " ".join(commands)
+            #             self.voting_system.add_vote(msg.username, command_sequence)
+            #         else:
+            #             self.voting_system.add_vote(msg.username, commands[0])
+            #     else:
+            #         # Legacy callback mode
+            #         for cmd in commands:
+            #             await self._on_command_extracted(msg.username, cmd)
+            # else:
+                # Use LLM for complex/ambiguous commands
+            commands = await self._extract_commands_with_llm(msg.text)
             if commands:
-                logger.info(f"Pattern matched '{msg.text}' -> {commands}")
+                logger.info(f"LLM extracted from '{msg.text}' -> {commands}")
                 self.commands_processed += len(commands)
-                
+
                 # Register votes in voting system
                 if self.voting_system:
-                    for cmd in commands:
-                        self.voting_system.add_vote(msg.username, cmd)
+                    # For compound commands, join them with spaces so they can be parsed on one line
+                    # Karel's extract_commands_from_line searches for all keywords in a line
+                    if len(commands) > 1:
+                        command_sequence = " ".join(commands)
+                        self.voting_system.add_vote(msg.username, command_sequence)
+                    else:
+                        self.voting_system.add_vote(msg.username, commands[0])
                 else:
                     # Legacy callback mode
                     for cmd in commands:
                         await self._on_command_extracted(msg.username, cmd)
-            else:
-                # Use LLM for complex/ambiguous commands
-                commands = await self._extract_commands_with_llm(msg.text)
-                if commands:
-                    logger.info(f"LLM extracted from '{msg.text}' -> {commands}")
-                    self.commands_processed += len(commands)
-                    
-                    # Register votes in voting system
-                    if self.voting_system:
-                        for cmd in commands:
-                            self.voting_system.add_vote(msg.username, cmd)
-                    else:
-                        # Legacy callback mode
-                        for cmd in commands:
-                            await self._on_command_extracted(msg.username, cmd)
 
     def _try_pattern_match(self, text: str) -> List[str]:
         """
         Try to match message against simple patterns.
         Returns list of commands if matched, empty list otherwise.
+        Supports compound commands separated by commas, "and", "then", etc.
         """
         text_lower = text.lower().strip()
 
@@ -336,31 +430,58 @@ IMPORTANT:
         try:
             # Make API call (run sync client in a thread for compatibility)
             def _call_openai():
-                return openai.ChatCompletion.create(
+                return self._openai_client.responses.create(
                     model=self.model,
-                    messages=[
+                    input=[
                         {"role": "system", "content": self.system_prompt},
-                        {"role": "user", "content": text}
+                        {"role": "user", "content": text},
                     ],
-                    temperature=0.3,
-                    max_tokens=100,
+                    max_output_tokens=100,
                 )
 
             response = await asyncio.to_thread(_call_openai)
+            line = response.output_text
+            logger.info("Extracted response from LLM:")
+            logger.info(response)
+            commands = []
+            # parse commands from response (which is a natural sentence now)
+            if "start_tracking" in line and '[' in line and ']' in line:
+                obj_name = line[line.find('[')+1:line.find(']')].strip()
+                commands.append("track_" + obj_name)
+            command_dict = {
+            "stop_tracking": "stop_tracking",
+            "move_forwards": "move_forward", 
+            "move_forward": "move_forward",
+            "move_backwards": "move_backward", 
+            "move_backward": "move_backward",
+            "move_left": "move_left", 
+            "move_right": "move_right", 
+            "turn_left": "turn_left", 
+            "turn_right": "turn_right", 
+            "bob": "bob", 
+            "wiggle": "wiggle", 
+            "dance": "dance",
+            "bark": "bark",
+            "stop": "stop"}
+        
+        # Search for each command keyword in the line
+            for keyword, canonical_command in command_dict.items():
+                if keyword in line:
+                    commands.append(canonical_command)
+        
+                if not commands:
+                    logger.debug(f"No commands found in line: {line}")
 
             self.api_calls_made += 1
             self._record_request()
 
-            # Parse response
-            # Support both dict-style and attribute-style access depending on SDK version
-            choice = response.choices[0]
-            message = getattr(choice, "message", None) or choice["message"]
-            content = message["content"].strip() if isinstance(message, dict) else message.content.strip()
-            if not content:
-                return []
+            # Parse response using the Responses API helper
+            # content = response.output_text
+            # if not content:
+            #     return []
 
             # Split into lines and clean
-            commands = [line.strip() for line in content.split('\n') if line.strip()]
+            # commands = [line.strip() for line in content.split('\n') if line.strip()]
             return commands
 
         except Exception as e:

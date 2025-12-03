@@ -149,6 +149,7 @@ class Bot(commands.AutoBot):
         # A list of subscriptions we would like to make to the newly authorized channel, we add new subsciptions in this list...
         subs: list[eventsub.SubscriptionPayload] = [
             eventsub.ChatMessageSubscription(broadcaster_user_id=payload.user_id, user_id=self.bot_id),
+            eventsub.ChannelCheerSubscription(broadcaster_user_id=payload.user_id, user_id=self.bot_id),
         ]
         print("added subscriptions list")
 
@@ -218,8 +219,23 @@ class MyComponent(commands.Component):
 
         # Pass message to chat processor (will filter by command prefix)
         self.bot.chat_processor.add_message(
+            donation=False,
             username=payload.chatter.name,
             text=payload.text,
+            broadcaster=payload.broadcaster.name
+        )
+
+    @commands.Component.listener()
+    async def event_donation(self, payload: twitchio.ChannelCheer) -> None:
+        """Process incoming Twitch chat messages and pass to chat processor."""
+        message = f"[{payload.broadcaster.name}] - {payload.user.name}: {payload.message}"
+        print(f"🎮 DONATION RECEIVED: [{payload.broadcaster.name}] - {payload.user.name}: {payload.message}", flush=True)
+
+        # Pass message to chat processor (will filter by command prefix)
+        self.bot.chat_processor.add_message(
+            donation=True,
+            username=payload.user.name,
+            text=payload.message,
             broadcaster=payload.broadcaster.name
         )
 
