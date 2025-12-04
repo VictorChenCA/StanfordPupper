@@ -144,6 +144,12 @@ class KarelRealtimeCommanderNode(Node):
             obj_name = line[line.find('[')+1:line.find(']')].strip()
             commands.append("track_" + obj_name)
 
+        # Handle conversation_say with [text] parameter
+        if "conversation_say" in line_lower and '[' in line and ']' in line:
+            text_content = line[line.find('[')+1:line.find(']')].strip()
+            if text_content:
+                commands.append(f"conversation_say [{text_content}]")
+
         # Handle say/speak/talk commands with [text] parameter
         say_keywords = ["say", "speak", "talk"]
         for keyword in say_keywords:
