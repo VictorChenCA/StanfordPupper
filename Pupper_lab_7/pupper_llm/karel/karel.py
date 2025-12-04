@@ -335,7 +335,7 @@ Text to check:"""
 
         # Try ElevenLabs first
         api_key = os.getenv('ELEVENLABS_API_KEY')
-        voice_id = os.getenv('ELEVENLABS_VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
+        voice_id = os.getenv('ELEVENLABS_VOICE_ID', 'A9evEp8yGjv4c3WsIKuY')
         self.node.get_logger().info(f'ElevenLabs API key set: {bool(api_key)}, Voice ID: {voice_id}')
         
         if api_key:
