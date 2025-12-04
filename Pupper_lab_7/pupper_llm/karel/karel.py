@@ -9,6 +9,7 @@ from std_msgs.msg import String
 import simpleaudio as sa
 import pygame
 import dotenv
+import asyncio
 dotenv.load_dotenv()
 
 class KarelPupper:
@@ -255,7 +256,7 @@ class KarelPupper:
         self.node.get_logger().info(f'Playing bark sound from: {bark_sound_path}')
         self.stop()
 
-    def _filter_text_with_gpt(self, text: str) -> str:
+    async def _filter_text_with_gpt(self, text: str) -> str:
         """
         Filter text through ChatGPT to ensure it's appropriate for a robot dog to say.
 
@@ -289,17 +290,20 @@ Rules:
 - Keep responses short and dog-friendly
 
 Text to check:"""
+            
+            client = OpenAI()
+            def _call_openai():
+                return client.responses.create(
+                    model=self.model,
+                    input=[
+                        {"role": "system", "content": filter_prompt},
+                        {"role": "user", "content": text},
+                    ],
+                    max_output_tokens=1000,
+                    reasoning={"effort": "minimal"}
+                )
 
-            response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": filter_prompt},
-                    {"role": "user", "content": text}
-                ],
-                temperature=0.1,
-                max_tokens=150,
-                timeout=5
-            )
+            response = await asyncio.to_thread(_call_openai)
 
             # Extract response
             result = response.choices[0].message.content.strip()
