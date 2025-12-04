@@ -457,11 +457,13 @@ Now respond to this message naturally:"""
                     {"role": "system", "content": conversation_prompt},
                     {"role": "user", "content": text},
                 ],
-                max_output_tokens=150,
+                max_output_tokens=1000,
                 reasoning={"effort": "minimal"}
             )
 
             conversation_text = response.output_text.strip()
+            self.node.get_logger().info(f'CONV SAY LOG RESPONSE: {response}')
+
             if not conversation_text:
                 return
 
