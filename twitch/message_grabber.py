@@ -117,7 +117,8 @@ class Bot(commands.AutoBot):
             conversation_prefix=CONVERSATION_PREFIX,
             batch_interval=BATCH_INTERVAL,
             max_requests_per_minute=MAX_REQUESTS_PER_MINUTE,
-            voting_system=voting_system
+            voting_system=voting_system,
+            ros_publisher=ros_publisher,
         )
 
         super().__init__(

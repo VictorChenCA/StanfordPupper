@@ -417,6 +417,59 @@ Text to check:"""
                     os.unlink(audio_file)
                 except:
                     pass
+
+    def conversational_say(self, text: str):
+        try:
+            from openai import OpenAI
+
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                self.node.get_logger().warning('No OpenAI API key for conversation, skipping')
+                return
+
+            client = OpenAI(api_key=api_key)
+
+            conversation_prompt = """You are Pupper, a friendly robotic dog and Twitch streamer.
+Someone is chatting with you (this is a CONVERSATION message, not a command).
+
+Respond naturally and conversationally:
+- Be friendly, playful, and dog-like in personality
+- Answer questions about yourself, preferences, feelings, etc.
+- Keep responses short (1-2 sentences)
+- Use dog-related expressions when appropriate (woof, tail wagging, etc.)
+- NO action commands should be in your response
+
+Examples:
+Q: "what's your favorite color?"
+A: "I love blue! It reminds me of the sky on walkies days!"
+
+Q: "how are you today?"
+A: "I'm doing pawsome! Thanks for asking! *wags tail*"
+
+Q: "do you like treats?"
+A: "Oh my gosh, YES! Treats are the best thing ever! Do you have any?"
+
+Now respond to this message naturally:"""
+
+            response = client.responses.create(
+                model="gpt-5-nano",
+                input=[
+                    {"role": "system", "content": conversation_prompt},
+                    {"role": "user", "content": text},
+                ],
+                max_output_tokens=150,
+                reasoning={"effort": "minimal"}
+            )
+
+            conversation_text = response.output_text.strip()
+            if not conversation_text:
+                return
+
+            self.node.get_logger().info(f'Conversational say: {conversation_text}')
+            self.say(conversation_text)
+
+        except Exception as e:
+            self.node.get_logger().error(f'Conversational say error: {e}')
     
     def dance(self):
         self.node.get_logger().info('Rick Rolling...')
