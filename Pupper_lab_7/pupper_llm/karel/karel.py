@@ -256,7 +256,7 @@ class KarelPupper:
         self.node.get_logger().info(f'Playing bark sound from: {bark_sound_path}')
         self.stop()
 
-    async def _filter_text_with_gpt(self, text: str) -> str:
+    def _filter_text_with_gpt(self, text: str) -> str:
         """
         Filter text through ChatGPT to ensure it's appropriate for a robot dog to say.
 
@@ -303,7 +303,7 @@ Text to check:"""
                     reasoning={"effort": "minimal"}
                 )
 
-            response = await asyncio.to_thread(_call_openai)
+            response = _call_openai()
 
             # Extract response
             result = response.choices[0].message.content.strip()
