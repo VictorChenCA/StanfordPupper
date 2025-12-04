@@ -187,6 +187,13 @@ class KarelRealtimeCommanderNode(Node):
         try:
             logger.info(f"⚙️  Executing {command}")
             
+            if command.startswith("conversation_say [") and command.endswith("]"):
+                logger.info("!!!!!Conversation say command received")
+                text_content = command[len("conversation_say ["):-1]
+                self.pupper.conversational_say(text_content)
+                await asyncio.sleep(3.0)
+                return True
+
             # NEW FOR LAB 7: Handle tracking commands
             # TODO: Add tracking command handling BEFORE your Lab 6 command mappings
             # - If command starts with "track_", extract the object name and call self.pupper.begin_tracking(object_name)

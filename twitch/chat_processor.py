@@ -61,7 +61,8 @@ class ChatProcessor:
         batch_interval: float = 3.0,
         max_requests_per_minute: int = 12,
         model: str = "gpt-5-nano",
-        voting_system = None
+        voting_system = None,
+        ros_publisher = None,
     ):
         """
         Initialize the chat processor.
@@ -81,6 +82,7 @@ class ChatProcessor:
         self.max_requests_per_minute = max_requests_per_minute
         self.model = model
         self.voting_system = voting_system
+        self.ros_publisher = ros_publisher
 
         # Initialize OpenAI
         if OpenAI is None:
@@ -316,8 +318,9 @@ CRITICAL RULES
         text_stripped = text.strip()
         text_lower = text_stripped.lower()
 
-        # Check if message starts with command prefix (!)
-        is_command = text_lower.startswith(self.command_prefix)
+        # Check if message starts with command prefix (!) or if it's a donation
+        is_command = text_lower.startswith(self.command_prefix) or donation
+
         # Check if message starts with conversation prefix (@)
         is_conversation = text_lower.startswith(self.conversation_prefix)
 
@@ -326,12 +329,12 @@ CRITICAL RULES
             return
 
         # Determine which prefix was used and remove it
-        if is_command:
-            message_text = text_stripped[len(self.command_prefix):].strip()
-            prefix_type = "COMMAND"
-        else:  # is_conversation
+        if is_conversation:
             message_text = text_stripped[len(self.conversation_prefix):].strip()
             prefix_type = "CONVERSATION"
+        else:  # is_command
+            message_text = text_stripped[len(self.command_prefix):].strip()
+            prefix_type = "COMMAND"
 
         if not message_text:
             print(f"⚠️  Message has prefix but no text - ignoring", flush=True)
@@ -389,10 +392,15 @@ CRITICAL RULES
         for msg in batch:
             # Handle conversation messages differently - no command extraction
             if msg.is_conversation:
-                response = await self._generate_conversation_response(msg.text)
-                if response:
-                    print(f"💬 Pupper says: {response}", flush=True)
-                    logger.info(f"Conversation response: {response}")
+                if hasattr(self, "ros_publisher") and self.ros_publisher is not None:
+                    try:
+                        command_text = f"conversation_say [{msg.text}]"
+                        self.ros_publisher.publish_command(command_text)
+                        logger.info(f"Forwarded conversation to ROS as command: {command_text}")
+                    except Exception as e:
+                        logger.error(f"Error publishing conversation command to ROS: {e}")
+                else:
+                    logger.warning("Conversation message received but no ROS publisher is configured")
                 continue
             # Try simple pattern matching first
             #commands = self._try_pattern_match(msg.text)
@@ -471,64 +479,6 @@ CRITICAL RULES
                     return [f"say [{text_to_speak}]"]
 
         return []
-
-    async def _generate_conversation_response(self, text: str) -> str:
-        """
-        Use OpenAI Chat API to generate a conversational response (no commands).
-        Returns the Pupper's conversational response.
-        """
-        if not getattr(self, "_openai_configured", False):
-            return ""
-
-        # Check rate limit
-        if not self._check_rate_limit():
-            logger.warning("Rate limit exceeded, skipping LLM call")
-            return ""
-
-        try:
-            conversation_prompt = """You are Pupper, a friendly robotic dog and Twitch streamer.
-Someone is chatting with you (this is a CONVERSATION message, not a command).
-
-Respond naturally and conversationally:
-- Be friendly, playful, and dog-like in personality
-- Answer questions about yourself, preferences, feelings, etc.
-- Keep responses short (1-2 sentences)
-- Use dog-related expressions when appropriate (woof, tail wagging, etc.)
-- NO action commands should be in your response
-
-Examples:
-Q: "what's your favorite color?"
-A: "I love blue! It reminds me of the sky on walkies days!"
-
-Q: "how are you today?"
-A: "I'm doing pawsome! Thanks for asking! *wags tail*"
-
-Q: "do you like treats?"
-A: "Oh my gosh, YES! Treats are the best thing ever! Do you have any?"
-
-Now respond to this message naturally:"""
-
-            # Make API call
-            def _call_openai():
-                return self._openai_client.responses.create(
-                    model=self.model,
-                    input=[
-                        {"role": "system", "content": conversation_prompt},
-                        {"role": "user", "content": text},
-                    ],
-                    max_output_tokens=150,
-                    reasoning={"effort": "minimal"}
-                )
-
-            response = await asyncio.to_thread(_call_openai)
-            self.api_calls_made += 1
-            self._record_request()
-
-            return response.output_text.strip()
-
-        except Exception as e:
-            logger.error(f"Error calling OpenAI API for conversation: {e}")
-            return ""
 
     async def _extract_commands_with_llm(self, text: str) -> List[str]:
         """
