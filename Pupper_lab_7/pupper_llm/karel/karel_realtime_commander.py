@@ -149,6 +149,8 @@ class KarelRealtimeCommanderNode(Node):
             text_content = line[line.find('[')+1:line.find(']')].strip()
             if text_content:
                 commands.append(f"conversation_say [{text_content}]")
+                return commands
+                
 
         # Handle say/speak/talk commands with [text] parameter
         say_keywords = ["say", "speak", "talk"]
@@ -194,7 +196,6 @@ class KarelRealtimeCommanderNode(Node):
             logger.info(f"⚙️  Executing {command}")
             
             if command.startswith("conversation_say [") and command.endswith("]"):
-                logger.info("!!!!!Conversation say command received")
                 text_content = command[len("conversation_say ["):-1]
                 self.pupper.conversational_say(text_content)
                 await asyncio.sleep(3.0)

@@ -462,7 +462,6 @@ Now respond to this message naturally:"""
             )
 
             conversation_text = response.output_text.strip()
-            self.node.get_logger().info(f'CONV SAY LOG RESPONSE: {response}')
 
             if not conversation_text:
                 return
