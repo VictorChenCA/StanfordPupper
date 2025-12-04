@@ -304,6 +304,7 @@ Text to check:"""
                 )
 
             response = _call_openai()
+            response = response.output_text
 
             # Extract response
             result = response.choices[0].message.content.strip()
