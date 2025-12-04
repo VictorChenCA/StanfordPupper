@@ -264,14 +264,14 @@ class KarelPupper:
             Filtered text, or empty string if content should be blocked
         """
         try:
-            from openai import OpenAI
+            import openai
 
             api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 self.node.get_logger().warning('No OpenAI API key for filtering, allowing text')
                 return text
 
-            client = OpenAI(api_key=api_key)
+            openai.api_key = api_key
 
             filter_prompt = """You are a content filter for a robot dog named Pupper that speaks to live audiences including children.
 
@@ -288,13 +288,15 @@ Rules:
 
 Text to check:"""
 
-            response = client.responses.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": filter_prompt},
                     {"role": "user", "content": text}
                 ],
-                max_output_tokens=1000,
+                temperature=0.1,
+                max_tokens=150,
+                timeout=5
             )
 
             # Extract response
@@ -335,7 +337,7 @@ Text to check:"""
         api_key = os.getenv('ELEVENLABS_API_KEY')
         voice_id = os.getenv('ELEVENLABS_VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
         self.node.get_logger().info(f'ElevenLabs API key set: {bool(api_key)}, Voice ID: {voice_id}')
-
+        
         if api_key:
             try:
                 import requests
