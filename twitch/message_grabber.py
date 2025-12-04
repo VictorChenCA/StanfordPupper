@@ -66,7 +66,8 @@ BOT_ID = os.getenv("BOT_ID")  # The Account ID of the bot user...
 OWNER_ID = BOT_ID  # We are using the streaming account to read stream messages so bot_id and owner_id are the same.
 
 # Chat processor configuration
-COMMAND_PREFIX = os.getenv("PUPPER_COMMAND_PREFIX", "#")
+COMMAND_PREFIX = os.getenv("PUPPER_COMMAND_PREFIX", "!")
+CONVERSATION_PREFIX = os.getenv("PUPPER_CONVERSATION_PREFIX", "@")
 BATCH_INTERVAL = float(os.getenv("PUPPER_BATCH_INTERVAL", "3.0"))
 MAX_REQUESTS_PER_MINUTE = int(os.getenv("PUPPER_MAX_REQUESTS_PER_MINUTE", "12"))
 
@@ -113,6 +114,7 @@ class Bot(commands.AutoBot):
         # Initialize chat processor with voting system
         self.chat_processor = ChatProcessor(
             command_prefix=COMMAND_PREFIX,
+            conversation_prefix=CONVERSATION_PREFIX,
             batch_interval=BATCH_INTERVAL,
             max_requests_per_minute=MAX_REQUESTS_PER_MINUTE,
             voting_system=voting_system
@@ -227,13 +229,17 @@ class MyComponent(commands.Component):
 
     @commands.Component.listener()
     async def event_donation(self, payload: twitchio.ChannelCheer) -> None:
-        """Process incoming Twitch chat messages and pass to chat processor."""
+        """Process incoming Twitch donation (cheer/bits) and pass to chat processor."""
+        # Extract bits amount from the payload
+        bits_amount = getattr(payload, 'bits', 0)
+
         message = f"[{payload.broadcaster.name}] - {payload.user.name}: {payload.message}"
-        print(f"🎮 DONATION RECEIVED: [{payload.broadcaster.name}] - {payload.user.name}: {payload.message}", flush=True)
+        print(f"💰 DONATION RECEIVED: [{payload.broadcaster.name}] - {payload.user.name} ({bits_amount} bits): {payload.message}", flush=True)
 
         # Pass message to chat processor (will filter by command prefix)
         self.bot.chat_processor.add_message(
             donation=True,
+            donation_amount=float(bits_amount),
             username=payload.user.name,
             text=payload.message,
             broadcaster=payload.broadcaster.name

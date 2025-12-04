@@ -4,7 +4,10 @@ Twitch Chat Processor with LLM Integration
 Batches messages and uses OpenAI Chat API to extract Pupper commands.
 Optimized for Raspberry Pi with rate limiting and message filtering.
 
-MINIMAL CHANGE: Fixed to work with bucket voting + command chaining
+Features:
+- Dual-prefix system: ! for commands (e.g., "!dance"), @ for conversations (e.g., "@what's your favorite color?")
+- Command extraction and bucket voting integration
+- Conversational AI responses for @ messages
 """
 
 import asyncio
@@ -34,23 +37,27 @@ class ChatMessage:
     timestamp: float
     broadcaster: str
     donation: bool = False
+    donation_amount: float = 0.0  # Donation amount in bits/currency
+    is_conversation: bool = False
 
 
 class ChatProcessor:
     """
     Processes Twitch chat messages using OpenAI Chat API.
     Features:
+    - Dual-prefix system: ! for commands, @ for conversations
     - Message batching to reduce API calls
-    - Command prefix filtering
     - Rate limiting
     - Pattern matching fallback for common commands
     - Integration with bucket voting system
+    - Conversational AI responses for @ messages
     """
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         command_prefix: str = "!",
+        conversation_prefix: str = "@",
         batch_interval: float = 3.0,
         max_requests_per_minute: int = 12,
         model: str = "gpt-5-nano",
@@ -62,12 +69,14 @@ class ChatProcessor:
         Args:
             api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
             command_prefix: Prefix for commands (e.g., "!")
+            conversation_prefix: Prefix for conversational messages (e.g., "@")
             batch_interval: Seconds to wait before processing batch
             max_requests_per_minute: Rate limit for API calls
             model: OpenAI model to use (gpt-4o-mini is cheaper and faster)
             voting_system: VotingSystem instance for bucket voting (optional)
         """
         self.command_prefix = command_prefix.lower()
+        self.conversation_prefix = conversation_prefix.lower()
         self.batch_interval = batch_interval
         self.max_requests_per_minute = max_requests_per_minute
         self.model = model
@@ -122,19 +131,41 @@ class ChatProcessor:
 
         # System prompt for LLM
         self.system_prompt = """You are Pupper, a robotic dog and a Twitch streamer. You receive **either**:
-1) A batch of Twitch chat messages (oldest → newest), or  
+1) A batch of Twitch chat messages (oldest → newest), or
 2) A single voice command (treat as a batch with one message).
+
+====================================
+MESSAGE TYPES
+====================================
+Messages come in two types based on prefix:
+- **COMMAND (!)**: User wants you to perform an action (e.g., "!dance", "!move forward")
+- **CONVERSATION (@)**: User wants to chat/ask questions (e.g., "@what's your favorite color?", "@hi pupper!")
+
+For CONVERSATION messages:
+- Respond naturally and conversationally, NO commands should be extracted
+- Be friendly, playful, and dog-like in personality
+- Answer questions about yourself, your day, what you see, etc.
+- Do NOT extract movement or action commands from these messages
+
+For COMMAND messages:
+- Extract and execute the requested commands as normal
+- You can include conversational responses along with commands
 
 ====================================
 CORE PRINCIPLE: BLENDED RESPONSES
 ====================================
-You can COMBINE conversation + vision + commands in ONE response when appropriate.
+You can COMBINE conversation + vision + commands in ONE response when appropriate (for COMMAND messages).
 
 Examples of blended responses:
 - "I see a red ball! Ooh, let me chase it! start_tracking [ball]"
 - "Stopping my tracking now! stop_tracking"
 - "Hey there! Sure, I'll dance for you. dance dance dance"
 - "I'm already tracking something, but I'll switch! stop_tracking start_tracking [person]"
+
+Examples of CONVERSATION-only responses (@ messages):
+- "@what's your favorite color?" → "I love blue! It reminds me of the sky on walkies days!"
+- "@how are you?" → "I'm doing great! Just hanging out and watching the stream. Woof!"
+- "@do you like treats?" → "Oh my gosh, YES! Treats are the best thing ever!"
 
 ====================================
 PARSING INPUT
@@ -256,8 +287,8 @@ CRITICAL RULES
 
         self.running = True
         self.processing_task = asyncio.create_task(self._processing_loop())
-        print(f"✅ Chat processor started (prefix: '{self.command_prefix}', batch: {self.batch_interval}s)", flush=True)
-        logger.info(f"Chat processor started (prefix: '{self.command_prefix}', batch: {self.batch_interval}s)")
+        print(f"✅ Chat processor started (command prefix: '{self.command_prefix}', conversation prefix: '{self.conversation_prefix}', batch: {self.batch_interval}s)", flush=True)
+        logger.info(f"Chat processor started (command prefix: '{self.command_prefix}', conversation prefix: '{self.conversation_prefix}', batch: {self.batch_interval}s)")
 
     async def stop(self):
         """Stop the message processor loop."""
@@ -270,39 +301,55 @@ CRITICAL RULES
                 pass
         logger.info(f"Chat processor stopped (API calls: {self.api_calls_made}, commands: {self.commands_processed})")
 
-    def add_message(self, username: str, text: str, broadcaster: str = "", donation: bool = False):
+    def add_message(self, username: str, text: str, broadcaster: str = "", donation: bool = False, donation_amount: float = 0.0):
         """
         Add a message to the processing queue.
-        Only adds messages that start with the command prefix.
+        Accepts messages starting with command prefix (!) or conversation prefix (@).
 
         Args:
             username: Twitch username
             text: Message text
             broadcaster: Broadcaster name
+            donation: Whether this is a donation message
+            donation_amount: Donation amount in bits/currency (0 for regular messages)
         """
-                    
-        # Filter by command prefix
-        if not text.strip().lower().startswith(self.command_prefix):
-            print(f"📝 Message '{text}' doesn't start with '{self.command_prefix}' - ignoring", flush=True)
+        text_stripped = text.strip()
+        text_lower = text_stripped.lower()
+
+        # Check if message starts with command prefix (!)
+        is_command = text_lower.startswith(self.command_prefix)
+        # Check if message starts with conversation prefix (@)
+        is_conversation = text_lower.startswith(self.conversation_prefix)
+
+        if not is_command and not is_conversation:
+            print(f"📝 Message '{text}' doesn't start with '{self.command_prefix}' or '{self.conversation_prefix}' - ignoring", flush=True)
             return
 
-        # Remove prefix from text
-        command_text = text.strip()[len(self.command_prefix):].strip()
-        if not command_text:
-            print(f"⚠️  Message has prefix but no command text - ignoring", flush=True)
+        # Determine which prefix was used and remove it
+        if is_command:
+            message_text = text_stripped[len(self.command_prefix):].strip()
+            prefix_type = "COMMAND"
+        else:  # is_conversation
+            message_text = text_stripped[len(self.conversation_prefix):].strip()
+            prefix_type = "CONVERSATION"
+
+        if not message_text:
+            print(f"⚠️  Message has prefix but no text - ignoring", flush=True)
             return
 
         msg = ChatMessage(
             username=username,
-            text=command_text,
+            text=message_text,
             timestamp=time.time(),
             broadcaster=broadcaster,
             donation=donation,
+            donation_amount=donation_amount,
+            is_conversation=is_conversation,
         )
 
         self.message_queue.append(msg)
-        print(f"✅ QUEUED: {username} → '{command_text}' (queue size: {len(self.message_queue)})", flush=True)
-        logger.debug(f"Queued message from {username}: {command_text}")
+        print(f"✅ QUEUED [{prefix_type}]: {username} → '{message_text}' (queue size: {len(self.message_queue)})", flush=True)
+        logger.debug(f"Queued {prefix_type.lower()} from {username}: {message_text}")
 
     async def _processing_loop(self):
         """Main processing loop - batches and processes messages."""
@@ -324,11 +371,10 @@ CRITICAL RULES
     async def _process_batch(self):
         """
         Process the current batch of messages.
-        
-        FIXED: Now properly integrates with voting system
-        - Extracts commands from each message
-        - Registers votes in the voting system
-        - Voting system handles aggregation and selection
+
+        Handles two message types:
+        - COMMAND messages: Extract commands and register votes
+        - CONVERSATION messages: Generate conversational responses only
         """
         if not self.message_queue:
             return
@@ -341,6 +387,13 @@ CRITICAL RULES
 
         # Process each message and register votes
         for msg in batch:
+            # Handle conversation messages differently - no command extraction
+            if msg.is_conversation:
+                response = await self._generate_conversation_response(msg.text)
+                if response:
+                    print(f"💬 Pupper says: {response}", flush=True)
+                    logger.info(f"Conversation response: {response}")
+                continue
             # Try simple pattern matching first
             #commands = self._try_pattern_match(msg.text)
 
@@ -374,9 +427,9 @@ CRITICAL RULES
                     # Karel's extract_commands_from_line searches for all keywords in a line
                     if len(commands) > 1:
                         command_sequence = " ".join(commands)
-                        self.voting_system.add_vote(msg.username, command_sequence)
+                        self.voting_system.add_vote(msg.username, command_sequence, msg.donation_amount)
                     else:
-                        self.voting_system.add_vote(msg.username, commands[0])
+                        self.voting_system.add_vote(msg.username, commands[0], msg.donation_amount)
                 else:
                     # Legacy callback mode
                     for cmd in commands:
@@ -418,6 +471,64 @@ CRITICAL RULES
                     return [f"say [{text_to_speak}]"]
 
         return []
+
+    async def _generate_conversation_response(self, text: str) -> str:
+        """
+        Use OpenAI Chat API to generate a conversational response (no commands).
+        Returns the Pupper's conversational response.
+        """
+        if not getattr(self, "_openai_configured", False):
+            return ""
+
+        # Check rate limit
+        if not self._check_rate_limit():
+            logger.warning("Rate limit exceeded, skipping LLM call")
+            return ""
+
+        try:
+            conversation_prompt = """You are Pupper, a friendly robotic dog and Twitch streamer.
+Someone is chatting with you (this is a CONVERSATION message, not a command).
+
+Respond naturally and conversationally:
+- Be friendly, playful, and dog-like in personality
+- Answer questions about yourself, preferences, feelings, etc.
+- Keep responses short (1-2 sentences)
+- Use dog-related expressions when appropriate (woof, tail wagging, etc.)
+- NO action commands should be in your response
+
+Examples:
+Q: "what's your favorite color?"
+A: "I love blue! It reminds me of the sky on walkies days!"
+
+Q: "how are you today?"
+A: "I'm doing pawsome! Thanks for asking! *wags tail*"
+
+Q: "do you like treats?"
+A: "Oh my gosh, YES! Treats are the best thing ever! Do you have any?"
+
+Now respond to this message naturally:"""
+
+            # Make API call
+            def _call_openai():
+                return self._openai_client.responses.create(
+                    model=self.model,
+                    input=[
+                        {"role": "system", "content": conversation_prompt},
+                        {"role": "user", "content": text},
+                    ],
+                    max_output_tokens=150,
+                    reasoning={"effort": "minimal"}
+                )
+
+            response = await asyncio.to_thread(_call_openai)
+            self.api_calls_made += 1
+            self._record_request()
+
+            return response.output_text.strip()
+
+        except Exception as e:
+            logger.error(f"Error calling OpenAI API for conversation: {e}")
+            return ""
 
     async def _extract_commands_with_llm(self, text: str) -> List[str]:
         """
@@ -560,6 +671,8 @@ async def main():
     processor.add_message("charlie", "!dance")
     processor.add_message("dave", "!turn left")
     processor.add_message("eve", "regular chat message")  # Won't be processed
+    processor.add_message("frank", "@what's your favorite color?")  # Conversation
+    processor.add_message("grace", "@how are you?")  # Conversation
 
     # Wait for processing
     await asyncio.sleep(5)

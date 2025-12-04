@@ -31,13 +31,14 @@ class CommandBucket:
     voters: Set[str] = field(default_factory=set)
     last_update: float = field(default_factory=time.time)
 
-    def add_vote(self, username: str, vote_duration: float) -> bool:
+    def add_vote(self, username: str, vote_duration: float, donation_amount: float = 0.0) -> bool:
         """
         Add a vote to this bucket.
 
         Args:
             username: User who is voting
             vote_duration: Seconds to add (typically 30)
+            donation_amount: Donation amount in bits/currency (0 for regular votes)
 
         Returns:
             True if vote was added, False if user already voted
@@ -48,12 +49,19 @@ class CommandBucket:
         # Decay first, then add vote
         self.decay()
 
+        # Calculate donation boost: each bit/currency unit adds 1 second
+        # So a 100 bits donation = 100 extra seconds on top of base vote_duration
+        boosted_duration = vote_duration + donation_amount
+
         # Add vote duration, capped at max_time
-        self.total_time = min(self.total_time + vote_duration, self.max_time)
+        self.total_time = min(self.total_time + boosted_duration, self.max_time)
         self.voters.add(username)
         self.last_update = time.time()
 
-        logger.debug(f"Vote added to '{self.command}' by {username}: {self.total_time:.1f}s")
+        if donation_amount > 0:
+            logger.debug(f"DONATION vote added to '{self.command}' by {username}: {boosted_duration:.1f}s ({donation_amount:.0f} bits boost)")
+        else:
+            logger.debug(f"Vote added to '{self.command}' by {username}: {self.total_time:.1f}s")
         return True
 
     def decay(self):
@@ -139,31 +147,43 @@ class VotingSystem:
             )
         return self.buckets[command]
 
-    def add_vote(self, username: str, command: str) -> bool:
+    def add_vote(self, username: str, command: str, donation_amount: float = 0.0) -> bool:
         """
         Add a vote for a command.
 
         Args:
             username: User voting
             command: Command to vote for
+            donation_amount: Donation amount in bits/currency (0 for regular votes)
 
         Returns:
             True if vote added, False if user already voted this cycle
         """
         bucket = self._get_or_create_bucket(command)
-        success = bucket.add_vote(username, self.vote_duration)
+        success = bucket.add_vote(username, self.vote_duration, donation_amount)
 
         if success:
             self.total_votes_received += 1
-            print(
-                f"🗳️  VOTE: {username} → '{command}' "
-                f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})",
-                flush=True
-            )
-            logger.info(
-                f"Vote: {username} → '{command}' "
-                f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})"
-            )
+            if donation_amount > 0:
+                print(
+                    f"💰 DONATION VOTE: {username} → '{command}' with {donation_amount:.0f} bits "
+                    f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})",
+                    flush=True
+                )
+                logger.info(
+                    f"Donation vote: {username} → '{command}' with {donation_amount:.0f} bits "
+                    f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})"
+                )
+            else:
+                print(
+                    f"🗳️  VOTE: {username} → '{command}' "
+                    f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})",
+                    flush=True
+                )
+                logger.info(
+                    f"Vote: {username} → '{command}' "
+                    f"(bucket: {bucket.total_time:.1f}s, voters: {len(bucket.voters)})"
+                )
         else:
             print(f"❌ Duplicate vote rejected: {username} already voted for '{command}'", flush=True)
             logger.debug(f"Duplicate vote rejected: {username} already voted for '{command}'")
