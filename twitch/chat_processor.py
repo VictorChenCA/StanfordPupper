@@ -316,8 +316,9 @@ CRITICAL RULES
         text_stripped = text.strip()
         text_lower = text_stripped.lower()
 
-        # Check if message starts with command prefix (!)
-        is_command = text_lower.startswith(self.command_prefix)
+        # Check if message starts with command prefix (!) or if it's a donation
+        is_command = text_lower.startswith(self.command_prefix) or donation
+
         # Check if message starts with conversation prefix (@)
         is_conversation = text_lower.startswith(self.conversation_prefix)
 
@@ -326,12 +327,12 @@ CRITICAL RULES
             return
 
         # Determine which prefix was used and remove it
-        if is_command:
-            message_text = text_stripped[len(self.command_prefix):].strip()
-            prefix_type = "COMMAND"
-        else:  # is_conversation
+        if is_conversation:
             message_text = text_stripped[len(self.conversation_prefix):].strip()
             prefix_type = "CONVERSATION"
+        else:  # is_command
+            message_text = text_stripped[len(self.command_prefix):].strip()
+            prefix_type = "COMMAND"
 
         if not message_text:
             print(f"⚠️  Message has prefix but no text - ignoring", flush=True)
