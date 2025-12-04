@@ -301,7 +301,7 @@ Text to check:"""
             )
 
             # Extract response
-            result = response.output[0].text.strip()
+            result = response.output_text.strip()
 
             if result.upper() == "BLOCKED" or "BLOCKED" in result.upper():
                 self.node.get_logger().warning(f'Content blocked by filter: {text}')
