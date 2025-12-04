@@ -267,14 +267,14 @@ class KarelPupper:
             Filtered text, or empty string if content should be blocked
         """
         try:
-            import openai
+            from openai import OpenAI
 
             api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 self.node.get_logger().warning('No OpenAI API key for filtering, allowing text')
                 return text
 
-            openai.api_key = api_key
+            client = OpenAI(api_key=api_key)
 
             filter_prompt = """You are a content filter for a robot dog named Pupper that speaks to live audiences including children.
 
@@ -291,23 +291,17 @@ Rules:
 
 Text to check:"""
             
-            client = OpenAI()
-            def _call_openai():
-                return client.responses.create(
-                    model=self.model,
-                    input=[
-                        {"role": "system", "content": filter_prompt},
-                        {"role": "user", "content": text},
-                    ],
-                    max_output_tokens=1000,
-                    reasoning={"effort": "minimal"}
-                )
-
-            response = _call_openai()
-            response = response.output_text
+            response = client.responses.create(
+                model="gpt-4o",
+                input=[
+                    {"role": "system", "content": filter_prompt},
+                    {"role": "user", "content": text},
+                ],
+                max_output_tokens=100
+            )
 
             # Extract response
-            result = response.choices[0].message.content.strip()
+            result = response.output[0].text.strip()
 
             if result.upper() == "BLOCKED" or "BLOCKED" in result.upper():
                 self.node.get_logger().warning(f'Content blocked by filter: {text}')
