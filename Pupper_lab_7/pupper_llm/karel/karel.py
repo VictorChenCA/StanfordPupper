@@ -8,6 +8,8 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 import simpleaudio as sa
 import pygame
+import dotenv
+dotenv.load_dotenv()
 
 class KarelPupper:
     def start():
