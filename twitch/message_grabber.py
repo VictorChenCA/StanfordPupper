@@ -220,13 +220,56 @@ class MyComponent(commands.Component):
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
         print(f"🎮 MESSAGE RECEIVED: [{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}", flush=True)
 
-        # Pass message to chat processor (will filter by command prefix)
-        self.bot.chat_processor.add_message(
-            donation=False,
-            username=payload.chatter.name,
-            text=payload.text,
-            broadcaster=payload.broadcaster.name
-        )
+        # Detect donations in chat messages of the form: "cheer <positive_int>"
+        donation = False
+        bits_amount = 0
+        chat_text = payload.text or ""
+        lower_text = chat_text.lower()
+
+        i = 0
+        while i < len(lower_text):
+            idx = lower_text.find("cheer", i)
+            if idx == -1:
+                break
+
+            start = idx
+            end = idx + len("cheer")
+
+            # Ensure "cheer" starts at a word boundary
+            if start > 0 and lower_text[start - 1].isalnum():
+                i = end
+                continue
+
+            # Require at least one digit *immediately* after "cheer"
+            if end >= len(lower_text) or not lower_text[end].isdigit():
+                i = end
+                continue
+
+            j = end
+            while j < len(lower_text) and lower_text[j].isdigit():
+                j += 1
+
+            bits_amount = int(lower_text[end:j])
+            if bits_amount > 0:
+                donation = True
+            break
+
+        if donation:
+            self.bot.chat_processor.add_message(
+                donation=True,
+                donation_amount=float(bits_amount),
+                username=payload.chatter.name,
+                text=payload.message,
+                broadcaster=payload.broadcaster.name
+            )
+        else:
+            # Pass message to chat processor (will filter by command prefix)
+            self.bot.chat_processor.add_message(
+                donation=False,
+                username=payload.chatter.name,
+                text=payload.text,
+                broadcaster=payload.broadcaster.name
+            )
 
     # @commands.Component.listener()
     # async def event_donation(self, payload: twitchio.ChannelBitsUse) -> None:
