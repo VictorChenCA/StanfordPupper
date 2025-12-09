@@ -215,7 +215,7 @@ class MyComponent(commands.Component):
     # An example of listening to an event
     # We use a listener in our Component to display the messages received.
     @commands.Component.listener()
-    async def event_message(self, payload: twitchio.ChatMessage) -> None:
+    async def event_message(self, payload: twitchio.ChatMessage, ctx: commands.Context) -> None:
         """Process incoming Twitch chat messages and pass to chat processor."""
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
         print(f"🎮 MESSAGE RECEIVED: [{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}", flush=True)
