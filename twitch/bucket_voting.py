@@ -9,12 +9,28 @@ MINIMAL CHANGE: Added get_top_commands_for_execution() to support command chaini
 import asyncio
 import logging
 import time
+import random
 from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bucket_voting")
+
+# Default set of commands to use when there are no active votes.
+# These should correspond to valid robot commands understood by the executor.
+DEFAULT_RANDOM_COMMANDS: List[str] = [
+    "move_forward",
+    "move_backward",
+    "move_left",
+    "move_right",
+    "turn_left",
+    "turn_right",
+    "wiggle",
+    "bob",
+    "dance",
+    "bark",
+]
 
 
 @dataclass
@@ -214,6 +230,13 @@ class VotingSystem:
         if winner and max_priority > 0:
             logger.info(f"Winner: '{winner}' with {max_priority:.1f}s priority")
             return (winner, max_priority)
+
+        # No winner from votes – fall back to a random command so the
+        # executor still has something to run.
+        if DEFAULT_RANDOM_COMMANDS:
+            fallback = random.choice(DEFAULT_RANDOM_COMMANDS)
+            logger.info(f"No voting winner - falling back to random command '{fallback}'")
+            return (fallback, 0.0)
 
         return None
 
