@@ -28,7 +28,6 @@ DEFAULT_RANDOM_COMMANDS: List[str] = [
     "turn_right",
     "wiggle",
     "bob",
-    "dance",
     "bark",
 ]
 
