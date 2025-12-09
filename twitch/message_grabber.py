@@ -263,7 +263,7 @@ class MyComponent(commands.Component):
                 broadcaster=payload.broadcaster.name
             )
         if payload.text == "#help":
-            await commands.Context.send(f"""Hi {ctx.chatter}! These are the following commands you can use:\n
+            await commands.Context.send(f"""Hi {commands.Context.chatter}! These are the following commands you can use:\n
                         - use \"!move <command>\" to suggest a movement command for Pupper (e.g., "!move forward")\n
                         - use \"!say <text>\" to have pupper say your message outloud.\n
                         - use \"@pupper <question>\" to ask pupper a question.\n
