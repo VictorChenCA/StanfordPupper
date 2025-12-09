@@ -215,7 +215,7 @@ class MyComponent(commands.Component):
     # An example of listening to an event
     # We use a listener in our Component to display the messages received.
     @commands.Component.listener()
-    async def event_message(self, payload: twitchio.ChatMessage, ctx: commands.Context) -> None:
+    async def event_message(self, payload: twitchio.ChatMessage) -> None:
         """Process incoming Twitch chat messages and pass to chat processor."""
         message = f"[{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}"
         print(f"🎮 MESSAGE RECEIVED: [{payload.broadcaster.name}] - {payload.chatter.name}: {payload.text}", flush=True)
@@ -263,7 +263,7 @@ class MyComponent(commands.Component):
                 broadcaster=payload.broadcaster.name
             )
         if payload.text == "#help":
-            await ctx.send(f"""Hi {ctx.chatter}! These are the following commands you can use:\n
+            await commands.Context.send(f"""Hi {ctx.chatter}! These are the following commands you can use:\n
                         - use \"!move <command>\" to suggest a movement command for Pupper (e.g., "!move forward")\n
                         - use \"!say <text>\" to have pupper say your message outloud.\n
                         - use \"@pupper <question>\" to ask pupper a question.\n
