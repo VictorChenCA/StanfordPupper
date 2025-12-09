@@ -271,6 +271,9 @@ class MyComponent(commands.Component):
                 broadcaster=payload.broadcaster.name
             )
 
+        # Handle twitchio commands (e.g., #hi, #say, etc.)
+        await self.bot.handle_commands(payload)
+
     # @commands.Component.listener()
     # async def event_donation(self, payload: twitchio.ChannelBitsUse) -> None:
     #     """Process incoming Twitch donation (cheer/bits) and pass to chat processor."""
@@ -291,13 +294,17 @@ class MyComponent(commands.Component):
 
     # EXAMPLES OF TWITCH COMMANDS - UNNECESSARY RIGHT NOW FOR PUPPER BUT SAVED FOR FUTURE REFERENCE
 
-    # @commands.command()
-    # async def hi(self, ctx: commands.Context) -> None:
-    #     """Command that replies to the invoker with Hi <name>!
+    @commands.command(name="help")
+    async def help_command(self, ctx: commands.Context) -> None:
+        """Command that replies with available commands.
 
-    #     !hi
-    #     """
-    #     await ctx.reply(f"Hi {ctx.chatter}!")
+        #help
+        """
+        await ctx.reply(f"""Hi {ctx.chatter}! These are the following commands you can use:\n
+                        - use \"!move <command>\" to suggest a movement command for Pupper (e.g., "!move forward")\n
+                        - use \"!say <text>\" to have pupper say your message outloud.\n
+                        - use \"@pupper <question>\" to ask pupper a question.\n
+                        - use \"#help\" to see this message again!""")
 
     # @commands.command()
     # async def say(self, ctx: commands.Context, *, message: str) -> None:
