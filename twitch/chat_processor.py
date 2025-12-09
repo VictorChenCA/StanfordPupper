@@ -79,7 +79,7 @@ class ChatProcessor:
         """
         self.command_prefix = command_prefix.lower()
         self.conversation_prefix = conversation_prefix.lower()
-        self.conversation_prefix = donation_prefix.lower()
+        self.donation_prefix = donation_prefix.lower()
         self.batch_interval = batch_interval
         self.max_requests_per_minute = max_requests_per_minute
         self.model = model
