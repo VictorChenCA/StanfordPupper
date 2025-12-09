@@ -262,6 +262,12 @@ class MyComponent(commands.Component):
                 text=payload.text,
                 broadcaster=payload.broadcaster.name
             )
+        if payload.text == "#help":
+            await ctx.send(f"""Hi {ctx.chatter}! These are the following commands you can use:\n
+                        - use \"!move <command>\" to suggest a movement command for Pupper (e.g., "!move forward")\n
+                        - use \"!say <text>\" to have pupper say your message outloud.\n
+                        - use \"@pupper <question>\" to ask pupper a question.\n
+                        - use \"#help\" to see this message again!""")
         else:
             # Pass message to chat processor (will filter by command prefix)
             self.bot.chat_processor.add_message(
@@ -272,7 +278,6 @@ class MyComponent(commands.Component):
             )
 
         # Handle twitchio commands (e.g., #hi, #say, etc.)
-        await self.bot.handle_commands(payload)
 
     # @commands.Component.listener()
     # async def event_donation(self, payload: twitchio.ChannelBitsUse) -> None:
