@@ -233,7 +233,7 @@ class VotingSystem:
         # No winner from votes – optionally fall back to a random command.
         # Flip a coin: only execute a random action on "heads".
         if DEFAULT_RANDOM_COMMANDS:
-            if random.random() < 0.0:
+            if random.random() < 0.05:
                 fallback = random.choice(DEFAULT_RANDOM_COMMANDS)
                 logger.info(
                     f"No voting winner - coin flip HEADS, executing random command '{fallback}'"
