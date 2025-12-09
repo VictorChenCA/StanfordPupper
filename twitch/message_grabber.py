@@ -264,7 +264,7 @@ class MyComponent(commands.Component):
             )
         if payload.text == "#help":
             user = self.bot.create_partialuser(BOT_ID)
-            await user.send_message(sender=self.bot.user, message=f"""Hi {commands.Context.chatter}! These are the following commands you can use:\n
+            await user.send_message(sender=self.bot.user, message=f"""Hi! These are the following commands you can use:\n
                         - use \"!move <command>\" to suggest a movement command for Pupper (e.g., "!move forward")\n
                         - use \"!say <text>\" to have pupper say your message outloud.\n
                         - use \"@pupper <question>\" to ask pupper a question.\n
