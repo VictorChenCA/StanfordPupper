@@ -43,6 +43,9 @@ class CommandBucket:
     command: str
     total_time: float = 0.0
     max_time: float = 60.0
+    # Total weighted votes for this command. Used to pick winners.
+    # Non-donors contribute 1 vote; donors contribute one vote per bit.
+    vote_count: float = 0.0
     voters: Set[str] = field(default_factory=set)
     last_update: float = field(default_factory=time.time)
 
@@ -64,12 +67,17 @@ class CommandBucket:
         # Decay first, then add vote
         self.decay()
 
-        # Calculate donation boost: each bit/currency unit adds 1 second
+        # Calculate donation boost for decay timer: each bit/currency unit adds 1 second
         # So a 100 bits donation = 100 extra seconds on top of base vote_duration
         boosted_duration = vote_duration + donation_amount
 
-        # Add vote duration, capped at max_time
+        # Voting weight: non-donors = 1 vote, donors = one vote per bit
+        vote_weight = donation_amount + 1 if donation_amount > 0 else 1.0
+
+        # Add vote duration, capped at max_time (for decay/expiry only)
         self.total_time = min(self.total_time + boosted_duration, self.max_time)
+        # Track votes separately for winner selection
+        self.vote_count += vote_weight
         self.voters.add(username)
         self.last_update = time.time()
 
@@ -88,9 +96,17 @@ class CommandBucket:
             self.total_time = max(0, self.total_time - elapsed)
             self.last_update = now
 
+            # When the decay timer runs out, reset votes and voters so
+            # very old commands no longer compete in winner selection.
+            if self.total_time <= 0.0:
+                self.total_time = 0.0
+                self.vote_count = 0.0
+                self.voters.clear()
+
     def clear(self):
         """Clear all votes from this bucket."""
         self.total_time = 0.0
+        self.vote_count = 0.0
         self.voters.clear()
         self.last_update = time.time()
         logger.debug(f"Bucket '{self.command}' cleared")
@@ -212,23 +228,23 @@ class VotingSystem:
         Returns:
             Tuple of (command, priority) or None if no votes
         """
-        # Decay all buckets first
+        # Decay all buckets first so old commands can expire
         for bucket in self.buckets.values():
             bucket.decay()
 
-        # Find bucket with highest priority
-        max_priority = 0.0
+        # Find bucket with highest vote count
+        max_votes = 0.0
         winner = None
 
         for command, bucket in self.buckets.items():
-            priority = bucket.get_priority()
-            if priority > max_priority:
-                max_priority = priority
+            votes = bucket.vote_count
+            if votes > max_votes:
+                max_votes = votes
                 winner = command
 
-        if winner and max_priority > 0:
-            logger.info(f"Winner: '{winner}' with {max_priority:.1f}s priority")
-            return (winner, max_priority)
+        if winner and max_votes > 0:
+            logger.info(f"Winner by votes: '{winner}' with {max_votes:.1f} votes")
+            return (winner, max_votes)
 
         # No winner from votes – optionally fall back to a random command.
         # Flip a coin: only execute a random action on "heads".
