@@ -259,7 +259,7 @@ class MyComponent(commands.Component):
                 donation=True,
                 donation_amount=float(bits_amount),
                 username=payload.chatter.name,
-                text=payload.message,
+                text=payload.text,
                 broadcaster=payload.broadcaster.name
             )
         else:

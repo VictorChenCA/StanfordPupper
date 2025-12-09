@@ -58,6 +58,7 @@ class ChatProcessor:
         api_key: Optional[str] = None,
         command_prefix: str = "!",
         conversation_prefix: str = "@",
+        donation_prefix: str = "cheer",
         batch_interval: float = 3.0,
         max_requests_per_minute: int = 12,
         model: str = "gpt-5-nano",
@@ -78,6 +79,7 @@ class ChatProcessor:
         """
         self.command_prefix = command_prefix.lower()
         self.conversation_prefix = conversation_prefix.lower()
+        self.conversation_prefix = donation_prefix.lower()
         self.batch_interval = batch_interval
         self.max_requests_per_minute = max_requests_per_minute
         self.model = model
@@ -316,6 +318,9 @@ CRITICAL RULES
         if is_conversation:
             message_text = text_stripped[len(self.conversation_prefix):].strip()
             prefix_type = "CONVERSATION"
+        elif donation:
+            message_text = text_stripped[len(self.donation_prefix)+1:].strip()
+            prefix_type = "DONATION"
         else:  # is_command
             message_text = text_stripped[len(self.command_prefix):].strip()
             prefix_type = "COMMAND"
