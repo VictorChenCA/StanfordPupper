@@ -231,12 +231,17 @@ class VotingSystem:
             logger.info(f"Winner: '{winner}' with {max_priority:.1f}s priority")
             return (winner, max_priority)
 
-        # No winner from votes – fall back to a random command so the
-        # executor still has something to run.
+        # No winner from votes – optionally fall back to a random command.
+        # Flip a coin: only execute a random action on "heads".
         if DEFAULT_RANDOM_COMMANDS:
-            fallback = random.choice(DEFAULT_RANDOM_COMMANDS)
-            logger.info(f"No voting winner - falling back to random command '{fallback}'")
-            return (fallback, 0.0)
+            if random.random() < 0.5:
+                fallback = random.choice(DEFAULT_RANDOM_COMMANDS)
+                logger.info(
+                    f"No voting winner - coin flip HEADS, executing random command '{fallback}'"
+                )
+                return (fallback, 0.0)
+            else:
+                logger.info("No voting winner - coin flip TAILS, skipping random command")
 
         return None
 
