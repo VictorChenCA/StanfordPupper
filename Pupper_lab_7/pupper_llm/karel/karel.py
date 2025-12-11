@@ -292,12 +292,12 @@ Rules:
 Text to check:"""
             
             response = client.responses.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 input=[
                     {"role": "system", "content": filter_prompt},
                     {"role": "user", "content": text},
                 ],
-                max_output_tokens=100
+                max_output_tokens=500
             )
 
             # Extract response
@@ -314,7 +314,7 @@ Text to check:"""
             self.node.get_logger().error(f'Content filter error: {e}, allowing original text')
             return text  # On error, allow the text through
 
-    def say(self, text: str):
+    def say(self, text: str, filter_text: bool = True):
         """
         Speak the given text using ElevenLabs TTS with pyttsx3 fallback.
         Text is filtered through ChatGPT before being spoken.
@@ -324,11 +324,14 @@ Text to check:"""
         """
         self.node.get_logger().info(f'Say request: {text}')
 
-        # Filter text through ChatGPT
-        filtered_text = self._filter_text_with_gpt(text)
-        if not filtered_text:
-            self.node.get_logger().info('Text was blocked by content filter')
-            return
+        # Optionally filter text through ChatGPT
+        if filter_text:
+            filtered_text = self._filter_text_with_gpt(text)
+            if not filtered_text:
+                self.node.get_logger().info('Text was blocked by content filter')
+                return
+        else:
+            filtered_text = text
 
         self.node.get_logger().info(f'Speaking: {filtered_text}')
 
@@ -457,13 +460,12 @@ Now respond to the user's message naturally.
 """
 
             response = client.responses.create(
-                model="gpt-5-nano",
+                model="gpt-4o-mini",
                 input=[
                     {"role": "system", "content": conversation_prompt},
                     {"role": "user", "content": text},
                 ],
-                max_output_tokens=1000,
-                reasoning={"effort": "minimal"}
+                max_output_tokens=500,
             )
 
             conversation_text = response.output_text.strip()
@@ -472,7 +474,8 @@ Now respond to the user's message naturally.
                 return
 
             self.node.get_logger().info(f'Conversational say: {conversation_text}')
-            self.say(conversation_text)
+            # Bypass additional content filtering for conversation responses
+            self.say(conversation_text, filter_text=False)
 
         except Exception as e:
             self.node.get_logger().error(f'Conversational say error: {e}')
