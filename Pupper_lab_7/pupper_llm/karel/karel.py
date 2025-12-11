@@ -33,6 +33,14 @@ class KarelPupper:
         self.tracking_enabled = False
         self.tracking_object = None
 
+        # Initialize OpenAI client once for reuse
+        try:
+            from openai import OpenAI
+            api_key = os.getenv('OPENAI_API_KEY')
+            self.openai_client = OpenAI(api_key=api_key) if api_key else None
+        except Exception:
+            self.openai_client = None
+
     def begin_tracking(self, obj: str = "person"):
         """
         NEW FOR LAB 7: Start tracking a specific object from the COCO dataset.
@@ -428,14 +436,10 @@ Text to check:"""
 
     def conversational_say(self, text: str):
         try:
-            from openai import OpenAI
-
-            api_key = os.getenv('OPENAI_API_KEY')
-            if not api_key:
-                self.node.get_logger().warning('No OpenAI API key for conversation, skipping')
+            client = getattr(self, 'openai_client', None)
+            if client is None:
+                self.node.get_logger().warning('No OpenAI client for conversation, skipping')
                 return
-
-            client = OpenAI(api_key=api_key)
 
             conversation_prompt = """
 You are **Pupper**, a friendly robotic dog and Twitch streamer.
@@ -448,14 +452,6 @@ Your response style:
 - Keep responses short (1-2 sentences).
 - Never include action commands or stage directions.
 - You can talk about your feelings, preferences, routines, or streamer life.
-
-Example responses:
-Q: "what's your favorite color?"
-A: "Blue! It feels like a big cozy sky I want to zoom around under!"
-
-Q: "do you like treats?"
-A: "Absolutely! Treats make my tail spin like a propeller!"
-
 Now respond to the user's message naturally.
 """
 
@@ -465,7 +461,7 @@ Now respond to the user's message naturally.
                     {"role": "system", "content": conversation_prompt},
                     {"role": "user", "content": text},
                 ],
-                max_output_tokens=500,
+                max_output_tokens=128,
             )
 
             conversation_text = response.output_text.strip()
