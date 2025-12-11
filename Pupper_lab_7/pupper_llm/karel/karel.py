@@ -336,7 +336,7 @@ Text to check:"""
 
         # Try ElevenLabs first
         api_key = os.getenv('ELEVENLABS_API_KEY')
-        voice_id = os.getenv('ELEVENLABS_VOICE_ID', 'h1i3CVVBUuF6s46cxUGG')  # prev: A9evEp8yGjv4c3WsIKuY
+        voice_id = os.getenv('ELEVENLABS_VOICE_ID', 'VR6AewLTigWG4xSOukaG')  # Default voice ID
         self.node.get_logger().info(f'ElevenLabs API key set: {bool(api_key)}, Voice ID: {voice_id}')
         
         if api_key:
@@ -352,13 +352,13 @@ Text to check:"""
                     "text": filtered_text,
                     "model_id": "eleven_multilingual_v2",
                     "voice_settings": {
-                        "stability": 0.25,
+                        "stability": 0.5,
                         "similarity_boost": 0.8,
                         "style_exaggeration": 0.0,
                     },
                     "generation_config": {
-                        "temperature": 0.0,
-                        "speed": 1.3
+                        "temperature": 0.1,
+                        "speed": 1.2
                     }
                 }
 
