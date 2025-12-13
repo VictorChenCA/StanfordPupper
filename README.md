@@ -3,6 +3,9 @@ Bahram Mohmand, Victor Chen, Sonnet Xu, Issa Sadamoto
 
 An interactive robotic dog platform with advanced AI capabilities including voice control, computer vision, and Twitch chat integration.
 
+https://docs.google.com/presentation/d/1L-3QQ5CKZq2rWe0neAvxAw50_1ctcW2dSrgw9Fe6UWM/edit?usp=drive_link
+
+[![Watch the demo](https://img.youtube.com/vi/WkV3JSaMH1Y/0.jpg)](https://www.youtube.com/watch?v=WkV3JSaMH1Y)
 
 ## Setup
 
