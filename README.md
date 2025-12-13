@@ -131,7 +131,3 @@ Contributions welcome! Feel free to:
 - Suggest features
 - Submit pull requests
 - Share your setup and modifications
-
-## License
-
-This project builds upon the Stanford Pupper platform. 
