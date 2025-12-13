@@ -20,7 +20,7 @@ https://docs.google.com/presentation/d/1L-3QQ5CKZq2rWe0neAvxAw50_1ctcW2dSrgw9Fe6
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/VictorChenCA/StanfordPupper. git
+git clone https://github.com/VictorChenCA/StanfordPupper.git
 ```
 
 2. **Install dependencies**
@@ -110,7 +110,7 @@ Copy and edit the environment file:
 
 ```bash
 cd twitch/
-cp .env. example .env
+cp .env.example.env
 nano .env
 ```
 
@@ -134,3 +134,7 @@ Contributions welcome! Feel free to:
 - Suggest features
 - Submit pull requests
 - Share your setup and modifications
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
