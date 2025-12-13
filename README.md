@@ -1,5 +1,5 @@
 # Pupper Live
-Bahram Mohmand, Victor Chen, Sonnet Xu, Issa Sadamoto
+### Bahram Mohmand, Victor Chen, Sonnet Xu, Issa Sadamoto
 
 An interactive robotic dog platform with advanced AI capabilities including voice control, computer vision, and Twitch chat integration.
 
